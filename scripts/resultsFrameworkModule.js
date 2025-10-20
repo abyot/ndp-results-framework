@@ -1,0 +1,19 @@
+export default angular.module('ndpFramework', [
+    'ui.bootstrap',
+    'ngRoute',
+    'ngCookies',
+    'ngSanitize',
+    'ngMessages',
+    'ndpFrameworkServices',
+    'ndpFrameworkFilters',
+    'ndpFrameworkDirectives',
+    'ndpFrameworkControllers',
+    'd2Directives',
+    'd2Filters',
+    'd2Services',
+    'd2Controllers',
+    'angularLocalStorage',
+    'ui.select',
+    'ui.select2',
+    'pascalprecht.translate'
+]);

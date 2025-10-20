@@ -1,0 +1,159 @@
+{
+  "outCome": [
+    {
+      "code": "09",
+      "costs": [
+        {
+          "code": "02",
+          "period": "2023",
+          "value": 16
+        },
+        {
+          "code": "02",
+          "period": "2024",
+          "value": 22
+        },
+        {
+          "code": "02",
+          "period": "2025",
+          "value": 19
+        },
+        {
+          "code": "02",
+          "period": "2026",
+          "value": 37
+        },
+        {
+          "code": "02",
+          "period": "2027",
+          "value": 31
+        },
+        {
+          "code": "03",
+          "period": "2023",
+          "value": 25
+        },
+        {
+          "code": "03",
+          "period": "2024",
+          "value": 18
+        },
+        {
+          "code": "03",
+          "period": "2025",
+          "value": 30
+        },
+        {
+          "code": "03",
+          "period": "2026",
+          "value": 23
+        },
+        {
+          "code": "03",
+          "period": "2027",
+          "value": 11
+        },
+        {
+          "code": "04",
+          "period": "2023",
+          "value": 40
+        },
+        {
+          "code": "04",
+          "period": "2024",
+          "value": 11
+        },
+        {
+          "code": "04",
+          "period": "2025",
+          "value": 30
+        },
+        {
+          "code": "04",
+          "period": "2026",
+          "value": 22
+        },
+        {
+          "code": "04",
+          "period": "2027",
+          "value": 26
+        },
+        {
+          "code": "05",
+          "period": "2023",
+          "value": 30
+        },
+        {
+          "code": "05",
+          "period": "2024",
+          "value": 10
+        },
+        {
+          "code": "05",
+          "period": "2025",
+          "value": 29
+        },
+        {
+          "code": "05",
+          "period": "2026",
+          "value": 19
+        },
+        {
+          "code": "05",
+          "period": "2027",
+          "value": 15
+        },
+        {
+          "code": "06",
+          "period": "2023",
+          "value": 20
+        },
+        {
+          "code": "06",
+          "period": "2024",
+          "value": 18
+        },
+        {
+          "code": "06",
+          "period": "2025",
+          "value": 31
+        },
+        {
+          "code": "06",
+          "period": "2026",
+          "value": 40
+        },
+        {
+          "code": "06",
+          "period": "2027",
+          "value": 9
+        },
+        {
+          "code": "07",
+          "period": "2023",
+          "value": 10
+        },
+        {
+          "code": "07",
+          "period": "2024",
+          "value": 30
+        },
+        {
+          "code": "07",
+          "period": "2025",
+          "value": 17
+        },
+        {
+          "code": "07",
+          "period": "2026",
+          "value": 28
+        },
+        {
+          "code": "07",
+          "period": "2027",
+          "value": 21
+        }
+      ]
+    }
+  ]
+}

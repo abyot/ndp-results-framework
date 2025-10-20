@@ -1,0 +1,67 @@
+<style>
+    tbody#datatable>tr:hover{
+        background-color:rgba(0,0,0,0.6);
+        background-color:#dcdcdc;
+        background-color:#bccdf0;
+    }
+</style>
+<div ng-include="'components/objective/filters.html'"></div>
+<div class="row" ng-if="model.reportReady" style="margin-left:0px;margin-right:0px;">
+    <div class="card-new" ng-if="model.reportReady" style="padding-top:10px;">
+        <div ng-if="model.hasPhysicalPerformanceData">
+            <div ng-include="'views/performance-overview-header.html'"></div>
+            <div style="height:10px;"></div>
+            <div id="performance_overview" class="col-sm-12 table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th class="sticky"></th>
+                        <th class="sticky"></th>
+                        <th class="sticky"></th>
+                        <th class="center sticky" colspan="{{model.pHeadersLength}}"
+                            ng-repeat="period in model.reportPeriods"
+                            ng-if="period.hasData">
+                            {{period.name}}
+                        </th>
+                    </tr>
+                    <tr>
+                        <!--                        <th class="sticky">{{model.selectedMenu.ndp}} {{'objectives'| translate}}</th>-->
+                        <th class="sticky">Pillars</th>
+                        <th>Outcomes</th>
+                        <th>{{'indicators'| translate}}</th>
+                        <th class="center sticky pov-cell-width"
+                            ng-style="header.style"
+                            ng-class="header.printStyle"
+                            ng-repeat="header in model.performanceOverviewHeaders">
+                            {{header.id}}
+                            <br>%
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody ng-repeat="row in model.povTableRows" id="datatable">
+                    <tr>
+                        <td>
+                            {{row.dataElementGroupSet}}
+                        </td>
+                        <td>
+                            {{row.dataElementGroup}}
+                        </td>
+                        <td>
+                            {{row.dataElementSize}}
+                        </td>
+                        <td ng-repeat="povh in model.performanceOverviewHeaders"
+                            ng-init="povValue = row.povPercent[row.dataElementGroupId + '-' + povh.id + '-' + povh.period]">
+                            {{povValue}}
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="col-sm-12" ng-if="!model.hasPhysicalPerformanceData">
+            <div class="alert alert-warning warning-label">
+                {{'no_data_exists'| translate}}
+            </div>
+        </div>
+    </div>
+</div>
