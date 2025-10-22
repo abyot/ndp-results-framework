@@ -1,0 +1,76 @@
+<style>
+    .tab-container {
+      width: 100% !important;
+      margin: 0 auto;
+    }
+
+    .tab-nav {
+      display: flex;
+      justify-content: space-around;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-bottom: 1px solid #e0e0e0;
+      background: #f8f8f8;
+    }
+
+    .tab-nav li {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      color: #555;
+      font-weight: bold;
+      transition: 0.3s;
+      position: relative;
+    }
+
+    .tab-nav li.active {
+      color: #27ae60;
+      background-color: #d9f8eb;
+    }
+
+    .tab-nav li.active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      background: #27ae60;
+    }
+
+    .tab-content {
+      padding: 10px;
+      min-height: 150px;
+    }
+</style>
+
+<div class="row">
+    <div class="col-sm-12">
+        <!--        <div equal-height-nav-tabs>-->
+        <!--            <tabset id="ndpTabSet" justified="true">-->
+        <!--                <tab heading="{{horizontalMenu.title| translate}}"-->
+        <!--                     class="{{getMenuStyle(horizontalMenu)}}"-->
+        <!--                     ng-repeat="horizontalMenu in model.horizontalMenus | orderBy:'order'"-->
+        <!--                     active="horizontalMenu.active"-->
+        <!--                     ng-click="resetView(horizontalMenu, $event)">-->
+        <!--                    <div ng-include="horizontalMenu.view"></div>-->
+        <!--                </tab>-->
+        <!--            </tabset>-->
+        <!--        </div>-->
+
+        <div class="tab-container">
+            <ul class="tab-nav">
+                <li ng-repeat="horizontalMenu in model.horizontalMenus | orderBy:'order'"
+                    ng-class="{ active: horizontalMenu.active }"
+                    ng-click="resetTheView(horizontalMenu, $event)">
+                    {{horizontalMenu.title| translate}}
+                </li>
+            </ul>
+            <div class="tab-content" id="tabContent">
+                <div ng-include="currentView"></div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,60 @@
+<span class=" hideInPrint" style="margin-top:10px;">
+    <span class="dropdown">
+<!--        <label class="btn btn-default dropdown-toggle" data-toggle="dropdown"-->
+        <!--               ng-attr-title="{{'download_as'| translate}}"><i class="fa fa-download"></i></label>-->
+
+         <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
+                 ng-attr-title="{{'download_as'| translate}}"
+                 aria-expanded="false">
+             <i class="fa fa-download cursor-pointer" style="margin-right:10px"></i>
+             {{'download_as'| translate}}
+          </button>
+
+        <ul class="dropdown-menu">
+            <li class="dropdown-item"><h6 class="dropdown-header">{{'download_as'| translate}}</h6></li>
+            <div class="divider"></div>
+            <li class="dropdown-item"><a href ng-click="exportData('result')">{{'csv'| translate}}</a></li>
+            <li class="dropdown-item"><a href onclick="javascript:window.print()">{{'pdf'| translate}}</a></li>
+        </ul>
+    </span>
+    <!--            <span class="dropdown" ng-if="(model.tableRows | filter: {hasData: false}).length > 0">-->
+    <!--                <button class="btn btn-default" ng-click="model.hideEmptyRows = !model.hideEmptyRows"-->
+    <!--                        title="{{ model.hideEmptyRows ? 'show_empty_rows' : 'hide_empty_rows' | translate}}">-->
+    <!--                    <i class="fa fa-eye-slash cursor-pointer" aria-hidden="true"></i>-->
+    <!--                </button>-->
+    <!--            </span>-->
+
+    <button type="button" class="btn btn-info" style="background-color: #fd7e14"
+            ng-if="(model.tableRows | filter: {hasData: false}).length > 0"
+            ng-click="model.hideEmptyRows = !model.hideEmptyRows"
+            title="{{ model.hideEmptyRows ? 'show_empty_rows' : 'hide_empty_rows' | translate}}">
+     <i class="fa fa-eye-slash cursor-pointer" style="margin-right:10px"></i>
+     {{ model.hideEmptyRows ? 'show_empty_rows' : 'hide_empty_rows' | translate}}
+</button>
+
+
+</span>
+<!--<div class="d-flex flex-wrap justify-content-center-start gap-4 mb-0">-->
+<!--    &lt;!&ndash; Download Button - Blue &ndash;&gt;-->
+<!--    <div class="btn-group">-->
+<!--        <button id="downloadBtn"-->
+<!--                class="btn btn-primary text-white px-4 py-2 rounded-pill d-flex align-items-center gap-2 shadow-sm"-->
+<!--                data-bs-toggle="dropdown" aria-expanded="false">-->
+<!--            <i class="fas fa-download"></i>-->
+<!--            <span>Download</span>-->
+<!--        </button>-->
+<!--        <ul class="dropdown-menu">-->
+<!--            <li><a class="dropdown-item" href ng-click="exportData('result')">CSV</a></li>-->
+<!--            <li><a class="dropdown-item" href onclick="window.print()">PDF</a></li>-->
+<!--        </ul>-->
+<!--    </div>-->
+
+<!--    &lt;!&ndash; Hide Empty Rows Button - Orange &ndash;&gt;-->
+<!--    <button id="hiveBtn"-->
+<!--            class="btn btn-orange text-white px-4 py-2 rounded-pill d-flex align-items-center gap-2 shadow-sm"-->
+<!--            ng-if="(model.tableRows | filter: {hasData: false}).length > 0"-->
+<!--            ng-click="model.hideEmptyRows = !model.hideEmptyRows">-->
+<!--        <i class="fas fa-eye-slash"></i>-->
+<!--        <span>{{ model.hideEmptyRows ? 'Show Empty' : 'Hide Empty' }}</span>-->
+<!--    </button>-->
+<!--</div>-->

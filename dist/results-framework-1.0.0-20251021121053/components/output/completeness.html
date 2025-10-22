@@ -1,0 +1,83 @@
+<style>
+    tbody#datatable>tr:hover{
+        background-color:rgba(0,0,0,0.6);
+        background-color:#dcdcdc;
+        background-color:#bccdf0;
+    }
+</style>
+
+<div ng-include="'components/output/filters.html'"></div>
+<div class="row" ng-if="model.reportReady" style="margin-left:0px;margin-right:0px;">
+    <div class="card-new" ng-if="model.dataExists" style="padding-top:10px;">
+        <div class="col-sm-12" ng-if="model.dataExists">
+        <span class=" hideInPrint">
+<!--            <span class="dropdown">-->
+            <!--                <label class="btn btn-default dropdown-toggle" data-toggle="dropdown" ng-attr-title="{{'download_as'| translate}}"><i class="fa fa-download"></i></label>-->
+            <!--                <ul class="dropdown-menu">-->
+            <!--                    <li><h6 class="dropdown-header">{{'download_as'| translate}}</h6></li>-->
+            <!--                    <li class="divider"></li>-->
+            <!--                    <li><a href ng-click="exportData('completeness')">{{'csv'| translate}}</a></li>-->
+            <!--                    <li><a href onclick="javascript:window.print()">{{'pdf'| translate}}</a></li>-->
+            <!--                </ul>-->
+            <!--            </span>-->
+            <span class="dropdown">
+         <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
+                 ng-attr-title="{{'download_as'| translate}}"
+                 aria-expanded="false">
+             <i class="fa fa-download cursor-pointer" style="margin-right:10px"></i>
+             {{'download_as'| translate}}
+          </button>
+
+        <ul class="dropdown-menu">
+            <li class="dropdown-item"><h6 class="dropdown-header">{{'download_as'| translate}}</h6></li>
+            <div class="divider"></div>
+            <li class="dropdown-item"><a href ng-click="exportData('completeness')">{{'csv'| translate}}</a></li>
+            <li class="dropdown-item"><a href onclick="javascript:window.print()">{{'pdf'| translate}}</a></li>
+        </ul>
+    </span>
+        </span>
+            <div id="completeness" class="table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th class="center sticky" colspan="100%">
+                            {{'data_completeness' | translate}} = {{getCoverage(model.numerator, model.denominator)}}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="sticky"></th>
+                        <th class="center sticky" colspan="{{period.colSpan}}" ng-repeat="period in model.reportPeriods"
+                            ng-if="period.hasData">
+                            {{period.name}}
+                        </th>
+                    </tr>
+                    <tr>
+                        <!--                        <th class="sticky">{{'sub_interventions'| translate}}</th>-->
+                        <th class="sticky">NDP Pillars</th>
+                        <th class="center sticky" ng-repeat="header in model.dataHeaders">
+                            {{model.metaData.items[header.dimensionId].name}}
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody id="datatable">
+                    <tr ng-repeat="objective in model.selectedDataElementGroupSets">
+                        <td>
+                            {{objective.displayName}}
+                        </td>
+                        <td class="center" ng-repeat="header in model.dataHeaders">
+                            {{getCoverage(objective['available'][header.periodId + '-' + header.dimensionId],
+                            objective['expected'][header.periodId + '-' + header.dimensionId])}}
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-12" ng-if="!model.dataExists">
+        <div class="alert alert-warning">
+            {{'no_data_exists'| translate}}
+        </div>
+    </div>
+</div>

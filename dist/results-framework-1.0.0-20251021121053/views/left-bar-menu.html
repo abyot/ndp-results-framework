@@ -1,0 +1,289 @@
+<style>
+    body {
+margin: 0;
+font-family: Arial, sans-serif;
+}
+
+.sidebar {
+width: 350px;
+height: 100vh;
+background-color: #002060;
+background-color: #4f7bba;
+background-color: #154c74;
+color: white;
+overflow-y: auto;
+}
+
+.menu-container {
+list-style: none;
+padding: 0;
+margin: 0;
+}
+
+.menu-item {
+position: relative;
+}
+
+.menu-item a {
+display: flex;
+align-items: center;
+padding: 15px 20px;
+text-decoration: none;
+color: white;
+transition: background-color 0.3s ease;
+}
+
+.menu-item a:hover {
+background-color: #555;
+background-color: #b7ddff;
+background-color: #002e63;
+background-color: #4e9ccf;
+cursor:pointer;
+}
+
+.accordion-icon {
+margin-left: auto;
+font-size: 14px;
+color: #aaa;
+}
+
+.submenu {
+display: none;
+background-color: #444;
+background-color: #94bbff;
+background-color: #215d87;
+padding-left: 60px;
+}
+
+.submenu.active {
+display: block;
+}
+
+.submenu-item {
+position: relative;
+}
+
+.submenu-item a {
+display: flex;
+align-items: center;
+padding: 10px 15px;
+text-decoration: none;
+color: white;
+transition: background-color 0.3s ease;
+}
+
+.submenu-item a:hover {
+background-color: #666;
+background-color: #002e63;
+background-color: #4e9ccf;
+display:block;
+}
+
+.icon {
+margin-right: 10px;
+font-size: 18px;
+}
+
+</style>
+
+<div>
+    <div class="menu-title" style="padding-right : 5px">
+        <h4 style="color:black">{{'menu' | translate}}</h4>
+        <div class="row small-vertical-spacing">
+            <div class="col-sm-12">
+                <ui-select ng-model="model.selectedNDP"
+                           theme="select2"
+                           class="selected-ndp-menu bold"
+                           style="width:100%;">
+                    <ui-select-match allow-clear="true" class="form-control-ui-select selected-ndp-menu bold"
+                                     placeholder="{{model.ndp && model.ndp.options && model.ndp.options.length > 0 ? 'please_select_ndp' : 'empty'| translate}}">
+                        {{$select.selected.displayName|| $select.selected}}
+                    </ui-select-match>
+                    <ui-select-choices
+                            repeat="option in model.ndp.options | filter: $select.search | limitTo:maxOptionSize | orderBy: ['displayName']">
+                        <span class="selected-ndp-menu bold"
+                              ng-bind-html="option.displayName | highlight: $select.search"></span>
+                    </ui-select-choices>
+                </ui-select>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="menu-container">
+            <div class="menu-item">
+                <a ng-click="toggleSubMenu('NPD')">
+                    <span class="icon">📈</span>
+                    NDP Tracker
+                    <span class="accordion-icon">{{ isSubMenuOpen['NPD'] ? '▼' : '▶' }}</span>
+                </a>
+                <div class="submenu" ng-class="{ 'active': isSubMenuOpen['NPD'] }">
+                    <div class="submenu-item">
+                        <a href ng-click="setSelectedMenu({
+                        id: 'OBJ',
+                        domain: 'NOUT',
+                        code: 'resultsFrameworkObjective',
+                        order: 1,
+                        displayName: 'objective_outcomes',
+                        children: [],
+                        view: 'components/objective/objective-status.html',
+                        color: 'ndp-menu',
+                        ndp: 'NDP'
+                          })">
+                            NDP Outcomes
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="menu-item">
+                <a ng-click="toggleSubMenu('SUB')">
+                    <span class="icon">📋</span>
+                    Budget Program Tracker
+                    <span class="accordion-icon">{{ isSubMenuOpen['SUB'] ? '▼' : '▶' }}</span>
+                </a>
+                <div class="submenu" ng-class="{ 'active': isSubMenuOpen['SUB'] }">
+
+                    <!--                    <div class="submenu-item ">-->
+                    <!--                        <a href ng-click="setSelectedMenu({-->
+                    <!--                                            id: 'SUB-OUTCOME',-->
+                    <!--                                            domain: 'SUB-OUTCOME',-->
+                    <!--                                            code: 'sub-programme',-->
+                    <!--                                            order: 1,-->
+                    <!--                                            displayName: 'intermediate_outcomes',-->
+                    <!--                                            children: [],-->
+                    <!--                                            view: 'components/intermediate-outcome/intermdiate-outcome-status.html',-->
+                    <!--                                            color: 'ndp-menu',-->
+                    <!--                                            ndp: 'NDP'-->
+                    <!--                                              })">-->
+                    <!--                            Outputs-->
+                    <!--                        </a>-->
+                    <!--                    </div>-->
+
+                    <div class="submenu-item">
+                        <a href ng-click="setSelectedMenu({
+                        id: 'SUB-OUTPUT',
+                        domain: 'SUB-OUTPUT',
+                        code: 'sub-intervention',
+                        order: 2,
+                        displayName: 'output_level',
+                        children: [],
+                        view: 'components/output/output-status.html',
+                        color: 'ndp-menu'
+                          })">
+                            Outputs
+                        </a>
+                    </div>
+
+                    <div class="submenu-item">
+                        <a href ng-click="setSelectedMenu({
+                        id: 'ACT',
+                        domain: 'ACT',
+                        code: 'resultsFrameworkObjective',
+                        order: 3,
+                        displayName: 'action_level',
+                        children: [],
+                        view: 'components/action/action-output-status.html',
+                        color: 'ndp-menu',
+                        ndp: 'NDP'
+                          })">
+                            Actions
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+            <div class="menu-item">
+                <a ng-click="setSelectedMenu({
+                  id: 'PRJP',
+                  domain: 'PRJP',
+                  code: 'project',
+                  displayName: 'project_performance',
+                  order: 3,
+                  view: 'components/project/performance.html'
+                   })">
+                    <span class="icon">🎯</span>
+                    Project Performance
+                </a>
+            </div>
+            <div class="menu-item">
+                <a href ng-click="setSelectedMenu({
+                      id: 'POAC',
+                      domain: 'POAC',
+                      code: 'policy',
+                      displayName: 'policy_action',
+                      order: 4,
+                      view: 'components/policy/performance.html'
+                    })">
+                    <span class="icon">📜</span>
+                    Policy Action
+                </a>
+            </div>
+            <!--            <div class="menu-item">-->
+            <!--                <a ng-click="toggleSubMenu('DG')">-->
+            <!--                    <span class="icon">🔒</span>-->
+            <!--                    Data Governance-->
+            <!--                    <span class="accordion-icon">{{ isSubMenuOpen['DG'] ? '▼' : '▶' }}</span>-->
+            <!--                </a>-->
+            <!--                <div class="submenu" ng-class="{ 'active': isSubMenuOpen['DG'] }">-->
+            <!--                    <div class="submenu-item">-->
+            <!--                        <a href ng-click="setSelectedMenu({-->
+            <!--                              id: 'DG-WFG',-->
+            <!--                              domain: 'WFG',-->
+            <!--                              code: 'WFG',-->
+            <!--                              displayName: 'workflow_guidelines',-->
+            <!--                              hasNoNDP: true,-->
+            <!--                              view: 'views/workflow-guideline.html'-->
+            <!--                            })">-->
+            <!--                            Workflow & guidelines-->
+            <!--                        </a>-->
+            <!--                    </div>-->
+            <!--                </div>-->
+            <!--            </div>-->
+            <div class="menu-item">
+                <a href ng-click="setSelectedMenu({
+                      id: 'DG-DICT',
+                      domain: 'DICT',
+                      code: 'DICT',
+                      order: 12,
+                      displayName: 'indicator_dictionary',
+                      view: 'components/dictionary/dictionary-status.html',
+                      color: 'dg-menu'
+                    })">
+                    <span class="icon">📚</span>
+                    Indicator dictionary
+                </a>
+            </div>
+            <div class="menu-item">
+                <a href ng-click="setSelectedMenu({
+                          id: 'DG-FAQ',
+                          domain: 'FAQ',
+                          code: 'FAQ',
+                          order: 13,
+                          displayName: 'faqs',
+                          view: 'components/faq/faq.html',
+                          hasNoNDP: true,
+                          color: 'dg-menu'
+                        })">
+                    <span class="icon">❓</span>
+                    FAQ
+                </a>
+            </div>
+            <div class="menu-item">
+                <a href ng-click="setSelectedMenu({
+                          id: 'LIB',
+                          domain: 'LIB',
+                          code: 'LIB',
+                          displayName: 'document_library',
+                          order: 14,
+                          view: 'components/library/library-status.html',
+                          hasNoNDP: true,
+                          color: 'lib-menu'
+                        })">
+                    <span class="icon">📁</span>
+                    Library
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+

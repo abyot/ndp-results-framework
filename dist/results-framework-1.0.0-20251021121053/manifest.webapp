@@ -1,0 +1,21 @@
+{
+    "version": "1.0.0",
+    "name": "NDP Results Framework",
+    "description": "NDP Results Framework",
+    "appType": "APP",
+    "short_name": "NDP Results Framework",
+    "launch_path": "index.html",
+    "icons": {
+        "48": "images/results-framework.png"
+    },
+    "developer": {
+        "name": "HISP ET",
+        "url": "https://hispethiopia.org"
+    },
+    "default_locale": "en",
+    "activities": {
+        "dhis": {
+            "href": ".."
+        }
+    }
+}
