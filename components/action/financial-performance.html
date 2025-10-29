@@ -6,8 +6,8 @@
             <span ng-include="'views/results-header.html'"></span>
             <div class="col-sm-12" style="margin-top:10px;">
             <span class="dropdown" style="margin-top:10px;">
-                <span class="col-sm-3 bordered-div pull-right"
-                      ng-repeat="header in model.performanceOverviewLegends | orderBy:'-order':reverse"
+                <span class="col-sm-4 bordered-div"
+                      ng-repeat="header in model.performanceOverviewLegends"
                       ng-style="header.style"
                       ng-class="header.printStyle">
                     {{header.name}}
@@ -16,7 +16,7 @@
             </div>
             <div id="performance" class="col-sm-12 table-scroll">
                 <div ng-include="'views/explanation-list.html'"></div>
-                <table style="with:100%;margin-top:10px;">
+                <table style="width:100%;margin-top:10px;">
                     <!--                    <tr>-->
                     <!--                        <td class="alert alert-warning" ng-repeat="period in model.reportPeriods"-->
                     <!--                            ng-if="!period.hasData">-->

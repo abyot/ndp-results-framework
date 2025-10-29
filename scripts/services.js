@@ -1152,7 +1152,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                 ranges.green = l.legends[j].endValue;
                                 ranges.greenColor = l.legends[j].color;
                             }
-                        }
+                        };
                         ranges.isValid = true;
                     }
                     return ranges;
@@ -1183,8 +1183,8 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                     }
 
                     if (!dhis2.validation.isNumber(actual) || !dhis2.validation.isNumber(target)) {
-                        color = '#aaa';
-                        style.printStyle = 'grey-background';
+                        color = '#CD615A';
+                        style.printStyle = 'red-background';
                     } else {
                         hasPhysicalPerformanceData = true;
                         /*var t = CommonUtils.getPercent( Math.abs(actual - target), target, true);
@@ -1200,7 +1200,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                         var t = CommonUtils.getPercent(actual, target, true, true);
                         t = Number(t);
                         if (de.descendingIndicatorType) {
-                            if (t <= ranges.green) {
+                            if (t >= ranges.greenStart && t<=ranges.greenEnd) {
                                 color = ranges.greenColor;
                                 style.printStyle = 'green-background';
                             } else if (t >= ranges.yellowStart && t <= ranges.yellowEnd) {
@@ -1211,7 +1211,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                 style.printStyle = 'red-background';
                             }
                         } else {
-                            if (t >= ranges.green) {
+                            if (t >= ranges.greenStart && t<=ranges.greenEnd) {
                                 color = ranges.greenColor;
                                 style.printStyle = 'green-background';
                             } else if (t >= ranges.yellowStart && t <= ranges.yellowEnd) {
@@ -1389,16 +1389,12 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                                         var trafficLight = getTrafficLight(rv, pv, de.id, dh.dimensionId);
                                                         tableRow.styles[dh.dimensionId + '.' + dh.periodId] = trafficLight;
 
-                                                        if (!pov[deg.id + '-' + 'A-' + dh.periodId]) {
-                                                            pov[deg.id + '-' + 'A-' + dh.periodId] = 0;
+                                                        if (!pov[deg.id + '-' + 'O-' + dh.periodId]) {
+                                                            pov[deg.id + '-' + 'O-' + dh.periodId] = 0;
                                                         }
 
-                                                        if (!pov[deg.id + '-' + 'M-' + dh.periodId]) {
-                                                            pov[deg.id + '-' + 'M-' + dh.periodId] = 0;
-                                                        }
-
-                                                        if (!pov[deg.id + '-' + 'N-' + dh.periodId]) {
-                                                            pov[deg.id + '-' + 'N-' + dh.periodId] = 0;
+                                                        if (!pov[deg.id + '-' + 'C-' + dh.periodId]) {
+                                                            pov[deg.id + '-' + 'C-' + dh.periodId] = 0;
                                                         }
 
                                                         if (!pov[deg.id + '-' + 'X-' + dh.periodId]) {
@@ -1410,12 +1406,12 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                                         } else {
                                                             var t = CommonUtils.getPercent(rv, pv, true, true);
                                                             t = Number(t);
-                                                            if (t >= 100) {
-                                                                pov[deg.id + '-' + 'A-' + dh.periodId] += 1;
-                                                            } else if (t >= 75 && t <= 99) {
-                                                                pov[deg.id + '-' + 'M-' + dh.periodId] += 1;
+                                                            if (t >= 50 && t<=100) {
+                                                                pov[deg.id + '-' + 'O-' + dh.periodId] += 1;
+                                                            } else if (t >= 0 && t <= 49) {
+                                                                pov[deg.id + '-' + 'C-' + dh.periodId] += 1;
                                                             } else {
-                                                                pov[deg.id + '-' + 'N-' + dh.periodId] += 1;
+                                                                pov[deg.id + '-' + 'X-' + dh.periodId] += 1;
                                                             }
                                                         }
                                                     }
@@ -1445,16 +1441,12 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                                     var av = filterResultData(ah, de.id, oc.id, data);
                                                     var tv = filterTargetData(th, de.id, oc.id, data);
 
-                                                    if (!pov[deg.id + '-' + 'A-' + dh.periodId]) {
-                                                        pov[deg.id + '-' + 'A-' + dh.periodId] = 0;
+                                                    if (!pov[deg.id + '-' + 'O-' + dh.periodId]) {
+                                                        pov[deg.id + '-' + 'O-' + dh.periodId] = 0;
                                                     }
 
-                                                    if (!pov[deg.id + '-' + 'M-' + dh.periodId]) {
-                                                        pov[deg.id + '-' + 'M-' + dh.periodId] = 0;
-                                                    }
-
-                                                    if (!pov[deg.id + '-' + 'N-' + dh.periodId]) {
-                                                        pov[deg.id + '-' + 'N-' + dh.periodId] = 0;
+                                                    if (!pov[deg.id + '-' + 'C-' + dh.periodId]) {
+                                                        pov[deg.id + '-' + 'C-' + dh.periodId] = 0;
                                                     }
 
                                                     if (!pov[deg.id + '-' + 'X-' + dh.periodId]) {
@@ -1466,12 +1458,12 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                                         pov[deg.id + '-' + 'X-' + dh.periodId] += 1;
                                                     } else {
                                                         var t = CommonUtils.getPercent(av, tv, true, true);
-                                                        if (t >= 100) {
-                                                            pov[deg.id + '-' + 'A-' + dh.periodId] += 1;
-                                                        } else if (t >= 75 && t <= 99) {
-                                                            pov[deg.id + '-' + 'M-' + dh.periodId] += 1;
+                                                        if (t >= 50 && t<=100) {
+                                                            pov[deg.id + '-' + 'O-' + dh.periodId] += 1;
+                                                        } else if (t >= 0 && t <= 49) {
+                                                            pov[deg.id + '-' + 'C-' + dh.periodId] += 1;
                                                         } else {
-                                                            pov[deg.id + '-' + 'N-' + dh.periodId] += 1;
+                                                            pov[deg.id + '-' + 'X-' + dh.periodId] += 1;
                                                         }
                                                     }
                                                 }

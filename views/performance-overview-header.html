@@ -27,8 +27,8 @@
 <div style="height:10px;"></div>
 <div class="col-sm-12">
     <span class="dropdown">
-        <span class="col-sm-3 bordered-div pull-right"
-              ng-repeat="header in model.performanceOverviewLegends| orderBy:'-order':reverse"
+        <span class="col-sm-4 bordered-div"
+              ng-repeat="header in model.performanceOverviewLegends"
               ng-style="header.style"
               ng-class="header.printStyle">
             {{header.name}}

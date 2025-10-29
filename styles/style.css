@@ -494,9 +494,8 @@
             border-radius: 3px;
         }
 
-            background-color: #CD615A !important;
         .red-background {
-           background-color: red;
+            background-color: #CD615A !important;
             color: #000;
         }
 
