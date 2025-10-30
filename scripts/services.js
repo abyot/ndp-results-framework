@@ -1740,7 +1740,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
         };
     })
 
-    .service('ProjectService', function ($http, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
+    .service('ProjectService', function ($http, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
         return {
             getByProgram: function (pager, filter, orgUnit, program, optionSets, attributesById, dataElementsById) {
                 var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=created:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
