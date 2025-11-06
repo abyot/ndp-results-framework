@@ -17,6 +17,7 @@ package-lock.json.gz
 !.env.example
 
 # --- Build outputs / caches ---
+dist/
 build/
 coverage/
 .cache/
