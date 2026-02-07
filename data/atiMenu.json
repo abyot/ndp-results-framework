@@ -1,0 +1,181 @@
+[
+    {
+        "id": "ATI",
+        "domain": "ATI",
+        "displayName": "area_of_issues",
+        "order": 1,
+        "hasChildren": true,
+        "show": true,
+        "color": "ndp_menu",
+        "children": [
+            {
+                "id": "HGH",
+                "order": 1,
+                "displayName": "strategic_plan",
+                "show": true,
+                "domain": "HGH",
+                "hasChildren": true,
+                "children": [
+                    {
+                        "id": "MNA",
+                        "domain": "MNA",
+                        "code": "mandateArea",
+                        "order": 2,
+                        "displayName": "mandate_area",
+                        "thematicArea": "mandate",
+                        "hasThematicArea": false,
+                        "children": [],
+                        "view": "components/ati/ati-status.html",
+                        "color": "ndp-menu",
+                        "periodType": "Yearly"
+                    },
+                    {
+                        "id": "SOB",
+                        "domain": "SOB",
+                        "code": "strategicObjective",
+                        "order": 3,
+                        "displayName": "strategic_objective",
+                        "thematicArea": "objective",
+                        "hasThematicArea": false,
+                        "children": [],
+                        "view": "components/ati/ati-status.html",
+                        "color": "ndp-menu",
+                        "periodType": "Yearly"
+                    }
+                ],
+                "color": "ndp-menu"
+            },
+            {
+                "id": "SUB",
+                "order": 2,
+                "displayName": "program",
+                "show": true,
+                "domain": "PRG",
+                "hasChildren": true,
+                "children": [
+                    {
+                        "id": "PRG",
+                        "domain": "PRG",
+                        "code": "programGoal",
+                        "order": 1,
+                        "displayName": "program_goal",
+                        "thematicArea": "program",
+                        "hasThematicArea": true,
+                        "children": [],
+                        "view": "components/ati/ati-status.html",
+                        "color": "ndp-menu"
+                    },
+                    {
+                        "id": "PRC",
+                        "domain": "PRC",
+                        "code": "programOutcome",
+                        "order": 2,
+                        "displayName": "program_outcome",
+                        "thematicArea": "program",
+                        "hasThematicArea": true,
+                        "show": true,
+                        "view": "components/ati/ati-status.html",
+                        "children": [],
+                        "color": "ndp-menu",
+                        "periodType": "Yearly"
+                    },
+                    {
+                        "id": "PRP",
+                        "domain": "PRP",
+                        "code": "programOutput",
+                        "order": 3,
+                        "displayName": "program_output",
+                        "thematicArea": "program",
+                        "hasThematicArea": true,
+                        "show": true,
+                        "view": "components/ati/ati-status.html",
+                        "children": [],
+                        "color": "ndp-menu",
+                        "periodType": "SixMonthly"
+                    }
+                ],
+                "color": "ndp-menu"
+            },
+            {
+                "id": "SUB",
+                "order": 3,
+                "displayName": "project",
+                "show": true,
+                "domain": "PRG",
+                "hasChildren": true,
+                "children": [
+                    {
+                        "id": "PJG",
+                        "domain": "PJG",
+                        "code": "projectGoal",
+                        "order": 1,
+                        "displayName": "project_goal",
+                        "thematicArea": "project",
+                        "hasThematicArea": true,
+                        "children": [],
+                        "view": "components/ati/ati-status.html",
+                        "color": "ndp-menu",
+                        "periodType": "Yearly"
+                    },
+                    {
+                        "id": "PJC",
+                        "domain": "PJC",
+                        "code": "projectOutcome",
+                        "order": 2,
+                        "displayName": "project_outcome",
+                        "thematicArea": "project",
+                        "hasThematicArea": true,
+                        "show": true,
+                        "view": "components/ati/ati-status.html",
+                        "children": [],
+                        "color": "ndp-menu",
+                        "periodType": "Yearly"
+                    },
+                    {
+                        "id": "PJP",
+                        "domain": "PJP",
+                        "code": "projectOutput",
+                        "order": 3,
+                        "displayName": "project_output",
+                        "thematicArea": "project",
+                        "hasThematicArea": true,
+                        "show": true,
+                        "view": "components/ati/ati-status.html",
+                        "children": [],
+                        "color": "ndp-menu",
+                        "periodType": "Monthly"
+                    },
+                    {
+                        "id": "PJW",
+                        "domain": "PJW",
+                        "code": "projectWorkstream",
+                        "order": 4,
+                        "displayName": "workstream",
+                        "thematicArea": "workstream",
+                        "hasThematicArea": true,
+                        "show": true,
+                        "view": "components/ati/ati-status.html",
+                        "children": [],
+                        "color": "ndp-menu",
+                        "periodType": "Monthly"
+                    },
+                    {
+                        "id": "PJA",
+                        "domain": "PJA",
+                        "code": "projectActivity",
+                        "order": 5,
+                        "displayName": "activity_status",
+                        "thematicArea": "activity",
+                        "hasThematicArea": true,
+                        "show": true,
+                        "view": "components/ati/ati-status.html",
+                        "children": [],
+                        "color": "ndp-menu",
+                        "periodType": "BiWeekly"
+                    }
+                ],
+                "color": "ndp-menu"
+            }
+        ]
+    }
+]

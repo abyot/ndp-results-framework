@@ -1,0 +1,86 @@
+<div ng-include="'components/ati/filters.html'"></div>
+<div class="row" ng-if="model.reportReady">
+    <div class="col-sm-12" ng-if="model.dataExists">
+        <span ng-include="'components/ati/results-header.html'"></span>
+        <div id="exportTable" class="table-scroll">
+            <table ng-if="model.selectedMenu.thematicArea !== 'activity'">
+                <thead>
+                    <tr>
+                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea"></th>
+                        <th class="sticky"></th>
+                        <th class="sticky"></th>
+                        <th class="center sticky" colspan="{{model.dataHeaders.length / model.selectedPeriods.length }}"
+                            ng-repeat="period in model.selectedPeriods | orderBy:'id'">
+                            {{period.name}}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea">{{model.selectedMenu.thematicArea
+                            | translate}}</th>
+                        <th class="sticky">{{model.selectedMenu.displayName | translate}}</th>
+                        <th>{{'indicators'| translate}}</th>
+                        <th class="sticky center" ng-repeat="header in model.dataHeaders">
+                            {{header.displayName}}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="de in model.dataElements
+                            track by ((de.id || de.uid) + '|' + (de.parent || '') + '|' + (de.ownerName || ''))">
+                        <td ng-if="de.rowSpan && model.selectedMenu.hasThematicArea" rowspan="{{de.rowSpan}}">
+                            {{de.ownerName}}
+                        </td>
+                        <td ng-if="de.rowSpan" rowspan="{{de.rowSpan}}">
+                            {{de.parent}}
+                        </td>
+                        <td>
+                            {{de.displayName}}
+                        </td>
+                        <td ng-repeat="dh in model.dataHeaders track by (dh.periodId + '|' + dh.dimensionId)" ng-class="(dh.dimensionId === 'actualAchievement' || dh.dimensionId === 'budget_utilization')
+                                    ? ('tl-cell ' + tlClass(getDV(de.id, dh)))
+                                    : ''">
+                            {{ getDV(de.id, dh) }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <table ng-if="model.selectedMenu.thematicArea === 'activity'">
+                <thead>
+                    <tr>
+                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea">{{model.selectedMenu.thematicArea | translate}}</th>
+                        <th class="sticky">{{model.selectedMenu.displayName | translate}}</th>
+                        <th class="sticky">{{'indicators' | translate}}</th>
+
+                        <th class="sticky center" ng-repeat="period in model.selectedPeriods | orderBy:'id'">
+                            {{period.name}}
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr ng-repeat="de in model.dataElements track by (de.id + '|' + (de.parentId || de.parent || ''))">
+                        <td ng-if="de.rowSpan && model.selectedMenu.hasThematicArea" rowspan="{{de.rowSpan}}">
+                            {{de.ownerName}}
+                        </td>
+                        <td ng-if="de.rowSpan" rowspan="{{de.rowSpan}}">
+                            {{de.parent}}
+                        </td>
+
+                        <td>{{de.displayName}}</td>
+
+                        <td ng-repeat="period in model.selectedPeriods | orderBy:'id'"
+                            ng-init="v = getTextValue(de.id, period.id)"
+                             ng-class="'tl-cell ' + statusTlClass(v)">
+                            {{ v }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-sm-12" ng-if="!model.dataExists">
+        <div class="alert alert-warning">
+            {{'no_data_exists'| translate}}
+        </div>
+    </div>
+</div>

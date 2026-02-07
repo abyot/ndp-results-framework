@@ -1,9 +1,9 @@
 {
     "version": "1.0.0",
-    "name": "NDP Results Framework",
-    "description": "NDP Results Framework",
+    "name": "ATI Results Framework",
+    "description": "ATI Results Framework",
     "appType": "APP",
-    "short_name": "NDP Results Framework",
+    "short_name": "ATI Results Framework",
     "launch_path": "index.html",
     "icons": {
         "48": "images/results-framework.png"

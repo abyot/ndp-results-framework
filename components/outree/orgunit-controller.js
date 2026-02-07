@@ -1,5 +1,3 @@
-/* global angular, ndpFramework */
-
 'use strict';
 
 var ndpFramework = angular.module('ndpFramework');

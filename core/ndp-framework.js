@@ -189,11 +189,6 @@ dhis2.ndp.downloadMetaData = function()
         .then( filterMissingAttributes )
         .then( getAttributes )
 
-        //fetch programs
-        .then( getMetaPrograms )
-        .then( filterMissingPrograms )
-        .then( getPrograms )
-
         //fetch legendSets
         .then( getMetaLegendSets )
         .then( filterMissingLegendSets )
@@ -218,6 +213,8 @@ dhis2.ndp.downloadMetaData = function()
 
 dhis2.ndp.downloadAllMetaData = function()
 {
+    DHIS2URL = env.dhisConfig.apiRoot;
+
     var metadataCached = JSON.parse(sessionStorage.getItem('ALL_METADATA_CACHED'));
 
     if ( metadataCached ){
@@ -249,9 +246,9 @@ dhis2.ndp.downloadAllMetaData = function()
         .then( getDataElementGroupSets )
 
         //fetch data sets
-        .then( getMetaDataSets )
+        /*.then( getMetaDataSets )
         .then( filterMissingDataSets )
-        .then( getDataSets )
+        .then( getDataSets )*/
 
         //fetch option sets
         .then( getMetaOptionSets )
@@ -267,11 +264,6 @@ dhis2.ndp.downloadAllMetaData = function()
         .then( getMetaAttributes )
         .then( filterMissingAttributes )
         .then( getAttributes )
-
-        //fetch programs
-        .then( getMetaPrograms )
-        .then( filterMissingPrograms )
-        .then( getPrograms )
 
         //fetch legendSets
         .then( getMetaLegendSets )
@@ -359,7 +351,7 @@ function filterMissingDataElementGroups( objs ){
 }
 
 function getDataElementGroups( ids ){
-    return dhis2.metadata.getBatches( ids, dhis2.ndp.batchSize, 'dataElementGroups', 'dataElementGroups', DHIS2URL + '/api/dataElementGroups.json', 'paging=false&fields=id,displayName,code,description,dataElements[id],attributeValues[value,attribute[id,name,valueType,code]]', 'idb', dhis2.ndp.store);
+    return dhis2.metadata.getBatches( ids, dhis2.ndp.batchSize, 'dataElementGroups', 'dataElementGroups', DHIS2URL + '/api/dataElementGroups.json', 'paging=false&fields=id,displayName,code,description,dataElements[id],attributeValues[value,attribute[id,name,valueType,code]],groupSets[id,displayName,code,attributeValues[value,attribute[code]]]', 'idb', dhis2.ndp.store);
 }
 
 function getMetaDataElementGroupSetsByType( type, code ){

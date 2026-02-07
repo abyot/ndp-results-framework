@@ -293,6 +293,16 @@ var d2Services = angular.module('d2Services', ['ngResource'])
 .service('CommonUtils', function($q, $translate, SessionStorageService, DateUtils, OptionSetService, CurrentSelection, FileService, DialogService){
 
     return {
+        isNumberValueType: function( valueType ){
+            if(valueType === 'NUMBER' ||
+               valueType === 'INTEGER' ||
+               valueType === 'INTEGER_POSITIVE' ||
+               valueType === 'INTEGER_NEGATIVE' ||
+               valueType === 'INTEGER_ZERO_OR_POSITIVE'){
+                return true;
+            }
+            return false;
+        },
         formatDataValue: function(event, val, obj, optionSets, destination){
             var fileNames = CurrentSelection.getFileNames();
             if(val &&
@@ -789,25 +799,30 @@ var d2Services = angular.module('d2Services', ['ngResource'])
         },
         getFormattedAnalyticsResponse: function( response ){
             var data = response.data;
+            var metadata = data.metaData;
             var reportData = [];
             if (data && data.headers && data.headers.length > 0 && data.rows && data.rows.length > 0) {
                 for (var i = 0; i < data.rows.length; i++) {
                     var r = {}, d = data.rows[i];
-                    for (var j = 0; j < data.headers.length; j++) {
+                    var dataElement = d[0] ? metadata.items[d[0]] : null;
+                    if ( dataElement ){
 
-                        if (data.headers[j].name === 'numerator' || data.headers[j].name === 'denominator') {
-                            d[j] = parseInt(d[j]);
-                        } else if (data.headers[j].name === 'value') {
-                            d[j] = parseFloat(d[j]);
+                        for (var j = 0; j < data.headers.length; j++) {
+                            var de = d
+                            if (data.headers[j].name === 'numerator' || data.headers[j].name === 'denominator') {
+                                d[j] = this.isNumberValueType(dataElement.valueType) ? parseInt(d[j]) : d[j];
+                            } else if (data.headers[j].name === 'value') {
+                                d[j] = this.isNumberValueType(dataElement.valueType) ? parseFloat(d[j]) : d[j];
+                            }
+
+                            r[data.headers[j].name] = d[j];
                         }
 
-                        r[data.headers[j].name] = d[j];
-                    }
-
-                    delete r.multiplier;
-                    delete r.factor;
-                    delete r.divisor;
-                    reportData.push(r);
+                        delete r.multiplier;
+                        delete r.factor;
+                        delete r.divisor;
+                        reportData.push(r);
+                    }                    
                 }
             }
             return {data: reportData, metaData: data.metaData};

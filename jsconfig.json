@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES5",
+    "checkJs": false
+  },
+  "include": [
+    "common/**/*.js",
+    "components/**/*.js",
+    "core/**/*.js",
+    "scripts/**/*.js",
+    "vendor/**/*.js",
+  ]
+}

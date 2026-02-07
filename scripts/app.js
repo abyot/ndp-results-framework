@@ -16,29 +16,11 @@ import '../scripts/filters.js'
 import '../scripts/directives.js'
 import '../scripts/controllers.js'
 
-import '../components/action/action-output-controller.js'
-import '../components/cluster/cluster-controller.js'
-import '../components/completeness/completeness-controller.js'
-import '../components/dictionary/dictionary-controller.js'
-import '../components/dictionary/dictionary-details-controller.js'
-import '../components/explanation/datavalue-explanation-controller.js'
-import '../components/faq/faq-controller.js'
-import '../components/goal/goal-controller.js'
 import '../components/home/home-controller.js'
-import '../components/intermediate-outcome/intermediate-outcome-controller.js'
-import '../components/library/library-controller.js'
-import '../components/llg/llg-controller.js'
-import '../components/log/log-controller.js'
-import '../components/mda/mda-controller.js'
-import '../components/objective/objective-controller.js'
-import '../components/outcome/outcome-controller.js'
-import '../components/output/output-controller.js'
 import '../components/outree/orgunit-controller.js'
-import '../components/policy/policy-controller.js'
-import '../components/project/project-controller.js'
-import '../components/sdg/sdg-controller.js'
 import '../components/settings/settings-controller.js'
-import '../components/vision/vision-controller.js'
+import '../components/mandate/mandate-controller.js'
+import '../components/ati/ati-controller.js'
 
 let scriptElement = document.createElement("script");
 scriptElement.type = "text/javascript";
@@ -67,9 +49,6 @@ angular.module('ndpFramework')
     $routeProvider.when('/home', {
         templateUrl:'components/home/home.html',
         controller: 'HomeController'
-    }).when('/sdg', {
-        templateUrl:'components/sdg/sdg-status.html',
-        controller: 'SDGController'
     }).otherwise({
         redirectTo : '/home'
     });

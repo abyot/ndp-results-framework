@@ -23,7 +23,6 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
 
         this.setSelectedMenu = function (selectedMenu) {
             this.selectedMenu = selectedMenu;
-            console.log('le menu selectd est ', selectedMenu)
         };
 
         this.getSelectedMenu = function () {
@@ -46,7 +45,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
     .service('NDPMenuService', function ($http, CommonUtils) {
         return {
             getMenu: function () {
-                var menuFile = 'data/ndpMenu.json';
+                var menuFile = 'data/atiMenu.json';
                 //var menuFile = 'data/ndpMenuSimplified.json';
                 var promise = $http.get(menuFile).then(function (response) {
                     return response.data;
@@ -252,7 +251,31 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                 });
                 return def.promise;
             },
-            getBtaDimensions: function () {
+            getBtaDimensions: function(){
+                var def = $q.defer();
+                var dimension = {options: [], category: null};
+                DDStorageService.currentStore.open().done(function(){
+                    DDStorageService.currentStore.getAll('categoryCombos').done(function(categoryCombos){
+                        var catFound = false;
+                        for( var i=0; i<categoryCombos.length && !catFound; i++){
+                            for( var j=0; j<categoryCombos[i].categories.length;j++){
+                                if( categoryCombos[i].categories[j].btaDimension ){
+                                    catFound = true;
+                                    dimension.category = categoryCombos[i].categories[j].id;
+                                    dimension.options = categoryCombos[i].categories[j].categoryOptions;
+                                    dimension.categoryCombo = categoryCombos[i];
+                                    break;
+                                }
+                            }
+                        }
+                        $rootScope.$apply(function(){
+                            def.resolve(dimension);
+                        });
+                    });
+                });
+                return def.promise;
+            },
+            getAtiDimensions: function () {
                 var def = $q.defer();
                 var dimension = {options: [], category: null};
                 DDStorageService.currentStore.open().done(function () {
@@ -260,7 +283,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                         var catFound = false;
                         for (var i = 0; i < categoryCombos.length && !catFound; i++) {
                             for (var j = 0; j < categoryCombos[i].categories.length; j++) {
-                                if (categoryCombos[i].categories[j].btaDimension) {
+                                if (categoryCombos[i].categories[j].atiDimension) {
                                     catFound = true;
                                     dimension.category = categoryCombos[i].categories[j].id;
                                     dimension.options = categoryCombos[i].categories[j].categoryOptions;
@@ -270,23 +293,39 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                             }
                         }
 
-                        var actualDimension = null;
-                        var targetDimension = null;
-                        var baselineDimension = null;
+                        var physicalActualDimension = null;
+                        var physicalTargetDimension = null;
+                        var budgetActualDimension = null;
+                        var budgetTaretDimension = null;
+                        var beneficiaryDimensions = [];
+
                         angular.forEach(dimension.options, function (op) {
-                            if (op.dimensionType === 'actual') {
-                                actualDimension = op;
+                            if (op.dimensionType === 'physicalActual') {
+                                physicalActualDimension = op;
                             }
-                            if (op.dimensionType === 'target') {
-                                targetDimension = op;
+                            if (op.dimensionType === 'physicalTarget') {
+                                physicalTargetDimension = op;
                             }
-                            if (op.dimensionType === 'baseline') {
-                                baselineDimension = op;
+                            if (op.dimensionType === 'budgetActual') {
+                                budgetActualDimension = op;
+                            }
+                            if (op.dimensionType === 'budgetTarget') {
+                                budgetTaretDimension = op;
+                            }
+                            if (op.dimensionType === 'beneficiary'){
+                                beneficiaryDimensions.push(op)
                             }
                         });
 
                         $rootScope.$apply(function () {
-                            def.resolve({bta: dimension, actual: actualDimension, target: targetDimension, baseline: baselineDimension});
+                            def.resolve({
+                                ati: dimension, 
+                                physicalActual: physicalActualDimension, 
+                                physicalTarget: physicalTargetDimension,
+                                budgetActual: budgetActualDimension, 
+                                budgetTarget: budgetTaretDimension, 
+                                beneficiary: beneficiaryDimensions
+                            });
                         });
                     });
                 });
@@ -692,7 +731,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                         var selectedObjects = [];
                         for (var i = 0; i < objs.length; i++) {
                             if (objs[i][prop]) {
-                                objs[i][prop] = objs[i][prop].toLocaleLowerCase();
+                                objs[i][prop] = objs[i][prop];
                                 if (objs[i][prop] === val)
                                 {
                                     selectedObjects.push(objs[i]);
@@ -1014,6 +1053,134 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                     def.resolve();
                     return def.promise;
                 }
+            },
+            processAtiData: function (dataParams){
+                var keyDataParams = ['data', 'metaData', 'reportPeriods', 'ati', 'dataElementGroups', 'dataElementsById'];
+
+                if (!dataParams) {
+                    NotificationService.showNotifcationDialog($translate.instant("error"), $translate.instant("invalid_report_parameters"));
+                    //return;
+                }
+
+                var atiDimensions = {category: dataParams.ati.category};
+                angular.forEach(dataParams.ati.options, function (op) {
+                    atiDimensions[op.id] = op.dimensionType;
+                });
+
+                var reportPeriods = orderByFilter(dataParams.reportPeriods, '-id').reverse();
+                var data = dataParams.data;
+                var targetActualDimensions = $.map(dataParams.ati.options, function (d) {
+                    return d.id;
+                });
+                var dataExists = false;
+                var dataHeaders = [];
+                //var performanceOverviewHeaders = dataParams.performanceOverviewHeaders;
+                var totalRows = 0, dataElementRows = 0;
+                var hasPhysicalPerformanceData = false;
+                var dataElementRowIndex = {};
+                var tableRows = [];
+                var povTableRows = [];
+
+                var valueExists = function(data, header, dataElement){
+                    if(!header || !data || !header.periodId || !header.dimensionId || !dataElement) {
+                        return false;
+                    }
+                    var filterParams = {
+                        dx: dataElement,
+                        pe: header.periodId
+                    };
+
+                    filterParams[dataParams.ati.category] = header.dimensionId;
+                    var res = $filter('dataFilter')(data, filterParams)[0];
+                    return res && res.value ? true : false;
+                };
+
+                var filterResultData = function (header, dataElement, oc, data) {
+                    if (!header || !data || !header.periodId || !header.dimensionId || !dataElement)
+                        return;
+
+                    var filterParams = {
+                        dx: dataElement,
+                        pe: header.periodId,
+                        co: oc
+                    };
+
+                    filterParams[dataParams.bta.category] = header.dimensionId;
+                    var res = $filter('dataFilter')(data, filterParams)[0];
+                    return res && res.value ? res.value : '';
+                };
+
+                var filterTargetData = function (header, dataElement, oc, data) {
+                    if (!header || !header.periodId || !dataElement || !oc || !data)
+                        return;
+                    var filterParams = {
+                        dx: dataElement,
+                        pe: header.periodId,
+                        co: oc
+                    };
+                    filterParams[dataParams.bta.category] = dataParams.targetDimension.id;
+
+                    var res = $filter('dataFilter')(data, filterParams)[0];
+                    return res && res.value ? res.value : '';
+                };
+
+                var filterBudgetData = function (header, dataElement, oc, data) {
+                    if (!header || !data || !header.periodId || !header.dimensionId || !dataElement)
+                        return;
+
+                    var filterParams = {
+                        dx: dataElement,
+                        pe: header.periodId,
+                        co: oc
+                    };
+
+                    filterParams[dataParams.bsr.category] = header.dimensionId;
+                    var res = $filter('dataFilter')(data, filterParams)[0];
+                    return res && res.value ? res.value : '';
+                };
+
+                var filterBeneficiaryValueData = function (header, dataElement, oc, data) {
+                    if (!header || !header.periodId || !dataElement || !oc || !data)
+                        return;
+                    var filterParams = {
+                        dx: dataElement,
+                        pe: header.periodId,
+                        co: oc
+                    };
+                    filterParams[dataParams.bsr.category] = dataParams.plannedDimension.id;
+
+                    var res = $filter('dataFilter')(data, filterParams)[0];
+                    return res && res.value ? res.value : '';
+                };
+
+                angular.forEach(reportPeriods, function (pe) {
+                    var colSpan = 0;
+                    var d = $filter('filter')(data, {pe: pe.id});
+                    var physicalTargetFilter = {pe: pe.id};
+                    physicalTargetFilter[dataParams.bta.category] = dataParams.physicalTargetDimension.id;
+                    var physicalTargetFilterData = $filter('filter')(data, physicalTargetFilter);
+
+                    pe.hasData = d && d.length > 0;
+                    pe.hasPhysicakTargetData = targetData && targetData.length > 0;                    
+                    angular.forEach(baseLineTargetActualDimensions, function (dm) {
+                        var filterParams = {pe: pe.id};
+                        filterParams[dataParams.bta.category] = dm;
+                        var d = $filter('dataFilter')(data, filterParams);
+                        if (d && d.length > 0) {
+                            colSpan++;
+                            dataHeaders.push({
+                                periodId: pe.id,
+                                periodStart: pe.startDate,
+                                periodEnd: pe.endDate,
+                                dimensionId: dm,
+                                dimension: dataParams.bta.category});
+                        }
+                    });
+                    if (pe.hasData) {
+                        pe.colSpan = colSpan;
+                    }
+                });
+                
             },
             processData: function (dataParams) {
 

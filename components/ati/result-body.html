@@ -1,0 +1,11 @@
+<tr ng-repeat="de in model.dataElements ">
+    <td ng-if="de.rowSpan" rowspan="{{de.rowSpan}}">
+        {{de.parent}}
+    </td>
+    <td>
+        {{de.displayName}}
+    </td>
+    <td ng-repeat="dh in model.dataHeaders">
+        {{dh.dimensionId}}
+    </td>
+</tr>

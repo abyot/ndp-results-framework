@@ -63,9 +63,11 @@ Thumbs.db
 !.vscode/launch.json
 .idea/
 *.iml
+nbproject/*
 
 # --- Misc ---
 *.log
 *.pid
 *.seed
 *.tgz
+/nbproject/private/
