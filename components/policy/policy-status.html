@@ -1,0 +1,31 @@
+<div class="small-vertical-spacing" ng-if="model.showPolicyDetails && model.selectedPolicy.trackedEntityInstance === policy.trackedEntityInstance">
+    <div class="bordered-div" ng-if="model.selectedPolicy.statusUpdates.length > 0">
+        <table class="table table-responsive table-bordered" >
+            <thead>
+                <th>{{'update_date' | translate}}</th>
+                <th>{{'updated_by' | translate}}</th>
+                <th ng-repeat="pstde in model.selectedProgram.programStages[0].programStageDataElements">
+                    {{pstde.dataElement.displayName}}
+                </th>
+            </thead>
+            <tbody>
+                <tr ng-repeat="status in model.selectedPolicy.statusUpdates">
+                    <td>
+                        {{status.createdAt}}
+                    </td>
+                    <td>
+                        {{status.completedBy}}
+                    </td>
+                    <td  ng-repeat="pstde in model.selectedProgram.programStages[0].programStageDataElements">
+                        {{status[pstde.dataElement.id]}}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="col-sm-12" ng-if="model.selectedPolicy.statusUpdates.length == 0">
+        <div class="alert alert-warning warning-label">
+            {{'policy_has_no_status_update'| translate}}
+        </div>
+    </div>
+</div>

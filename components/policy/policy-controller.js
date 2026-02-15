@@ -12,11 +12,10 @@ ndpFramework.controller('PolicyController',
         MetaDataFactory,
         ProgramFactory,
         OrgUnitFactory,
-        ProjectService) {
+        PolicyService) {
 
     $scope.model = {
         metaDataCached: false,
-        showOnlyCoreProject: false,
         data: null,
         reportReady: false,
         dataExists: false,
@@ -34,7 +33,6 @@ ndpFramework.controller('PolicyController',
         periodOffset: 0,
         openFuturePeriods: 10,
         selectedPeriodType: 'FinancialJuly',
-        coreProjectAttribute: null,
         bac: null,
         ac: null,
         timePerformance: [],
@@ -47,9 +45,7 @@ ndpFramework.controller('PolicyController',
     $scope.pager = {pageSize: 50, page: 1, toolBarDisplay: 5};
 
     $scope.model.horizontalMenus = [
-        {id: 'synthesis', title: 'project_synthesis', order: 1, view: 'components/policy/synthesis.html', active: true, class: 'main-horizontal-menu'},
-        {id: 'time_performance', title: 'time_performance', order: 2, view: 'components/policy/time-performance.html', class: 'main-horizontal-menu'},
-        {id: 'cost_performance', title: 'cost_performance', order: 3, view: 'components/policy/cost-performance.html', class: 'main-horizontal-menu'}
+        {id: 'policy_status', title: 'policy_status', order: 1, view: 'components/policy/policy-status.html', active: true, class: 'main-horizontal-menu'}
     ];
 
     $scope.model.performanceHeaders = [
@@ -97,7 +93,6 @@ ndpFramework.controller('PolicyController',
     });
 
     $scope.fetchProgramDetails = function(){
-        $scope.model.coreProjectAttribute = null;
         $scope.pager = {pageSize: 50, page: 1, toolBarDisplay: 5};
         $scope.model.filterText = {};
         if( $scope.model.selectedMenu && $scope.model.selectedMenu.code && $scope.model.selectedProgram && $scope.model.selectedProgram.id && $scope.model.selectedProgram.programTrackedEntityAttributes ){
@@ -114,12 +109,12 @@ ndpFramework.controller('PolicyController',
                     }
                 });
             });
-            $scope.fetchProjects();
+            $scope.fetchPolicies();
         }
     };
 
-    $scope.fetchProjects = function(){
-        $scope.model.projectFetchStarted = true;
+    $scope.fetchPolicies = function(){
+        $scope.model.policyFetchStarted = true;
         var filter = [];
         if ( Object.keys( $scope.model.filterText ).length > 0 ){
             for(var key in $scope.model.filterText ){
@@ -128,15 +123,15 @@ ndpFramework.controller('PolicyController',
             }
         }
 
-        ProjectService.getByProgram($scope.pager, filter.length > 0 ? filter.join('&') : null, $scope.selectedOrgUnit, $scope.model.selectedProgram, $scope.model.optionSetsById, $scope.model.attributesById, $scope.model.dataElementsById ).then(function( response ){
-            $scope.model.projects = response.projects;
-            $scope.model.projectsFetched = true;
-            $scope.model.projectFetchStarted = false;
+        PolicyService.getByProgram($scope.pager, filter.length > 0 ? filter.join('&') : null, $scope.selectedOrgUnit, $scope.model.selectedProgram, $scope.model.optionSetsById, $scope.model.attributesById, $scope.model.dataElementsById ).then(function( response ){
+            $scope.model.policies = response.policies;
+            $scope.model.policiesFetched = true;
+            $scope.model.policyFetchStarted = false;
 
             response.pager.pageSize = response.pager.pageSize ? response.pager.pageSize : $scope.pager.pageSize;
             $scope.pager = response.pager;
             $scope.pager.toolBarDisplay = 5;
-            $scope.pager.length = $scope.model.projects.length;
+            $scope.pager.length = $scope.model.policies.length;
 
             Paginator.setPage($scope.pager.page);
             Paginator.setPageCount($scope.pager.pageCount);
@@ -145,32 +140,43 @@ ndpFramework.controller('PolicyController',
         });
     };
 
-    $scope.searchProjects = function(){
-        $scope.fetchProjects();
+    $scope.getPolicyDetails = function( policy ){
+        if ( $scope.model.selectedPolicy && $scope.model.selectedPolicy.trackedEntityInstance === policy.trackedEntityInstance ){
+            $scope.model.showPolicyDetails = !$scope.model.showPolicyDetails;
+            $scope.model.selectedPolicy = null;
+        }
+        else{
+            $scope.model.selectedPolicy = policy;
+            $scope.model.showPolicyDetails = true;
+        }
+    };
+    
+    $scope.searchPolicies = function(){
+        $scope.fetchPolicies();
     };
 
     $scope.jumpToPage = function(){
         if($scope.pager && $scope.pager.page && $scope.pager.pageCount && $scope.pager.page > $scope.pager.pageCount){
             $scope.pager.page = $scope.pager.pageCount;
         }
-        $scope.fetchProjects();
+        $scope.fetchPolicies();
     };
 
     $scope.resetPageSize = function(){
         $scope.pager.page = 1;
-        $scope.fetchProjects();
+        $scope.fetchPolicies();
     };
 
     $scope.getPage = function(page){
         $scope.pager.page = page;
-        $scope.fetchProjects();
+        $scope.fetchPolicies();
     };
 
     $scope.resetData = function(){
         $scope.model.attributesById = [];
         $scope.model.dataElementsById = [];
-        $scope.model.projectsFetched = false;
-        $scope.model.projects = [];
+        $scope.model.policiesFetched = false;
+        $scope.model.policies = [];
     };
 
     $scope.resetView = function(horizontalMenu, e){
