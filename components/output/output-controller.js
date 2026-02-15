@@ -218,7 +218,7 @@ ndpFramework.controller('OutputController',
                 $scope.model.ndpProgrammes = $scope.model.resultsFrameworkChain.programs;
                 $scope.model.subProgrammes = $scope.model.resultsFrameworkChain.subPrograms;
                 $scope.model.piapObjectives = $scope.model.resultsFrameworkChain.objectives;
-//                $scope.model.interventions = $scope.model.resultsFrameworkChain.interventions;
+//              $scope.model.interventions = $scope.model.resultsFrameworkChain.interventions;
 
                 MetaDataFactory.getAll('optionGroupSets').then(function(optionGroupSets){
 
@@ -241,8 +241,8 @@ ndpFramework.controller('OutputController',
                         $scope.model.allPeriods = angular.copy( periods );
                         $scope.model.periods = periods;
 
-//                        var selectedPeriodNames = ['2020/21', '2021/22', '2022/23', '2023/24', '2024/25'];
-                        var selectedPeriodNames = ['2023', '2024', '2025', '2026', '2027'];
+//                      var selectedPeriodNames = ['2020/21', '2021/22', '2022/23', '2023/24', '2024/25'];
+                        var selectedPeriodNames = ['2022', '2023', '2024', '2025', '2026', '2027'];
 
                         var today = DateUtils.getToday();
                         angular.forEach($scope.model.periods, function(pe){

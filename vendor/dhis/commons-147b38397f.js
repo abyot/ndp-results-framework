@@ -62,6 +62,7 @@ var __APP_BASE__ = (function () {
   return m ? m[1] : '/';
 })();
 
+var headerMessageTimeout = -1;
 var _loading_bar_html    = "<span id='loaderSpan'><img src='" + __APP_BASE__ + "images/ajax-loader-bar.gif'></span>";
 var _loading_circle_html = "<span id='loaderSpan'><img src='" + __APP_BASE__ + "images/ajax-loader-circle.gif'></span>";
 

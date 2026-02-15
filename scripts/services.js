@@ -23,7 +23,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
 
         this.setSelectedMenu = function (selectedMenu) {
             this.selectedMenu = selectedMenu;
-            console.log('le menu selectd est ', selectedMenu)
+            //console.log('le menu selectd est ', selectedMenu)
         };
 
         this.getSelectedMenu = function () {
@@ -53,6 +53,18 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                 }, function (response) {
                     CommonUtils.errorNotifier(response);
                     return response.data;
+                });
+                return promise;
+            }
+        };
+    })
+
+    .service('DataStoreService', function($http){
+        return {
+            getAppConfig: function () {
+                var url = DHIS2URL + '/api/dataStore/ndp-rf/appConfig';
+                var promise = $http.get( url ).then(function(res){
+                    return res.data;
                 });
                 return promise;
             }
@@ -1017,227 +1029,277 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
             },
             processData: function (dataParams) {
 
-                var keyDataParams = ['data', 'metaData', 'cost', 'reportPeriods', 'bta', 'selectedDataElementGroupSets', 'dataElementGroups', 'dataElementsById', 'dataElementGroupsById'];
+                // -----------------------------------------------------------------------------
+                // Required inputs
+                // -----------------------------------------------------------------------------
+                var keyDataParams = [
+                    'data', 'metaData', 'cost', 'reportPeriods',
+                    'bta', 'selectedDataElementGroupSets', 'dataElementGroups',
+                    'dataElementsById', 'dataElementGroupsById',
+                    'periodConfig', 'trafficLightConfig'
+                ];
 
                 if (!dataParams) {
                     NotificationService.showNotifcationDialog($translate.instant("error"), $translate.instant("invalid_report_parameters"));
-                    //return;
                 }
 
                 for (var i = 0; i < keyDataParams.length; i++) {
                     if (!dataParams[keyDataParams[i]] && keyDataParams[i] !== 'cost') {
-                        NotificationService.showNotifcationDialog($translate.instant("error"), $translate.instant("missing_report_parameters") + ' - ' + keyDataParams[i]);
-                        //return;
+                        NotificationService.showNotifcationDialog(
+                            $translate.instant("error"),
+                            $translate.instant("missing_report_parameters") + ' - ' + keyDataParams[i]
+                        );
                     }
                 }
 
-                var btaDimensions = {category: dataParams.bta.category};
-                angular.forEach(dataParams.bta.options, function (op) {
-                    btaDimensions[op.id] = op.dimensionType;
-                });
-
                 var reportPeriods = orderByFilter(dataParams.reportPeriods, '-id').reverse();
                 var data = dataParams.data;
-                var baseLineTargetActualDimensions = $.map(dataParams.bta.options, function (d) {
-                    return d.id;
-                });
-                var dataExists = false;
+
+                var dataExists = Object.keys(data || {}).length > 0;
                 var dataHeaders = [];
                 var performanceOverviewHeaders = dataParams.performanceOverviewHeaders;
+
                 var totalRows = 0, dataElementRows = 0;
                 var hasPhysicalPerformanceData = false;
                 var dataElementRowIndex = {};
                 var tableRows = [];
                 var povTableRows = [];
 
-                var filterResultData = function (header, dataElement, oc, data) {
-                    if (!header || !data || !header.periodId || !header.dimensionId || !dataElement)
-                        return;
+                // -----------------------------------------------------------------------------
+                // FAST LOOKUP MAPS (O(1)) : dx|pe|co|dimId -> value
+                // -----------------------------------------------------------------------------
+                function makeKey(dx, pe, co, dimId) {
+                    return [dx, pe, co, dimId].join('|');
+                }
 
-                    var filterParams = {
-                        dx: dataElement,
-                        pe: header.periodId,
-                        co: oc
-                    };
+                var btaCat = dataParams.bta && dataParams.bta.category;
+                var bsrCat = dataParams.bsr && dataParams.bsr.category;
 
-                    filterParams[dataParams.bta.category] = header.dimensionId;
-                    var res = $filter('dataFilter')(data, filterParams)[0];
-                    return res && res.value ? res.value : '';
-                };
+                var btaValueMap = Object.create(null);
+                var bsrValueMap = Object.create(null);
 
-                var filterTargetData = function (header, dataElement, oc, data) {
-                    if (!header || !header.periodId || !dataElement || !oc || !data)
-                        return;
-                    var filterParams = {
-                        dx: dataElement,
-                        pe: header.periodId,
-                        co: oc
-                    };
-                    filterParams[dataParams.bta.category] = dataParams.targetDimension.id;
+                angular.forEach(data, function (r) {
+                    if (!r || !r.dx || !r.pe || !r.co) return;
 
-                    var res = $filter('dataFilter')(data, filterParams)[0];
-                    return res && res.value ? res.value : '';
-                };
-
-                var filterBudgetData = function (header, dataElement, oc, data) {
-                    if (!header || !data || !header.periodId || !header.dimensionId || !dataElement)
-                        return;
-
-                    var filterParams = {
-                        dx: dataElement,
-                        pe: header.periodId,
-                        co: oc
-                    };
-
-                    filterParams[dataParams.bsr.category] = header.dimensionId;
-                    var res = $filter('dataFilter')(data, filterParams)[0];
-                    return res && res.value ? res.value : '';
-                };
-
-                var filterBudgetValueData = function (header, dataElement, oc, data) {
-                    if (!header || !header.periodId || !dataElement || !oc || !data)
-                        return;
-                    var filterParams = {
-                        dx: dataElement,
-                        pe: header.periodId,
-                        co: oc
-                    };
-                    filterParams[dataParams.bsr.category] = dataParams.plannedDimension.id;
-
-                    var res = $filter('dataFilter')(data, filterParams)[0];
-                    return res && res.value ? res.value : '';
-                };
-
-                var valueExists = function (data, header, dataElement, isActionData) {
-                    if (!header || !data || !header.periodId || !header.dimensionId || !dataElement) {
-                        return false;
+                    if (btaCat && r[btaCat]) {
+                        btaValueMap[makeKey(r.dx, r.pe, r.co, r[btaCat])] = r.value;
                     }
-                    var filterParams = {
-                        dx: dataElement,
-                        pe: header.periodId
-                    };
-
-                    if (isActionData) {
-                        filterParams[dataParams.bsr.category] = header.dimensionId;
-                    } else {
-                        filterParams[dataParams.bta.category] = header.dimensionId;
+                    if (bsrCat && r[bsrCat]) {
+                        bsrValueMap[makeKey(r.dx, r.pe, r.co, r[bsrCat])] = r.value;
                     }
+                });
 
-                    var res = $filter('dataFilter')(data, filterParams)[0];
-                    return res && res.value ? true : false;
-                };
+                function getBtaValue(dx, pe, co, dimId) {
+                    var v = btaValueMap[makeKey(dx, pe, co, dimId)];
+                    return (v !== undefined && v !== null) ? v : '';
+                }
 
-                var extractRange = function (l) {
-                    var ranges = {
-                        red: null,
-                        redColor: null,
-                        yellowStart: null,
-                        yellowEnd: null,
-                        yellowColor: null,
-                        green: null,
-                        greenColor: null,
+                function getBsrValue(dx, pe, co, dimId) {
+                    var v = bsrValueMap[makeKey(dx, pe, co, dimId)];
+                    return (v !== undefined && v !== null) ? v : '';
+                }
+
+                // -----------------------------------------------------------------------------
+                // FAST NUMBER FORMATTER (avoid $filter('number') in hot loops)
+                // -----------------------------------------------------------------------------
+                function formatNumber(v) {
+                    if (v === '' || v === null || v === undefined) return '';
+                    if (!dhis2.validation.isNumber(v)) return v;
+                    return Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                }
+
+                // -----------------------------------------------------------------------------
+                // TRAFFIC LIGHT ENGINE (single source of truth)
+                // Precedence: per-indicator LegendSet -> DataStore defaults -> CommonUtils.getFixedRanges
+                // -----------------------------------------------------------------------------
+                var tlc = dataParams.trafficLightConfig || null;
+
+                function normalizeLegendSet(ls) {
+                    var out = {
+                        greenStart: null, greenEnd: null, greenColor: null,
+                        yellowStart: null, yellowEnd: null, yellowColor: null,
+                        redStart: null, redEnd: null, redColor: null,
                         isValid: false
                     };
 
-                    if (l && l.isTrafficLight && l.legends && l.legends.length === 3) {
-                        for (var j = 0; j < l.legends.length; j++) {
-                            if (l.legends[j].name.toLocaleLowerCase() === 'red') {
-                                ranges.red = l.legends[j].startValue;
-                                ranges.redColor = l.legends[j].color;
-                            } else if (l.legends[j].name.toLocaleLowerCase() === 'yellow') {
-                                ranges.yellowStart = l.legends[j].startValue;
-                                ranges.yellowEnd = l.legends[j].endValue;
-                                ranges.yellowColor = l.legends[j].color;
-                            } else if (l.legends[j].name.toLocaleLowerCase() === 'green') {
-                                ranges.green = l.legends[j].endValue;
-                                ranges.greenColor = l.legends[j].color;
-                            }
-                        };
-                        ranges.isValid = true;
-                    }
-                    return ranges;
-                };
+                    if (!ls || !ls.isTrafficLight || !ls.legends || ls.legends.length !== 3) return out;
 
-                var getTrafficLight = function (actual, target, deId, aoc) {
-                    var style = {};
-                    var color = "";
+                    angular.forEach(ls.legends, function (lg) {
+                        if (!lg || !lg.name) return;
+                        var n = lg.name.toLowerCase();
+                        if (n === 'green') {
+                            out.greenStart = lg.startValue; out.greenEnd = lg.endValue; out.greenColor = lg.color;
+                        } else if (n === 'yellow') {
+                            out.yellowStart = lg.startValue; out.yellowEnd = lg.endValue; out.yellowColor = lg.color;
+                        } else if (n === 'red') {
+                            out.redStart = lg.startValue; out.redEnd = lg.endValue; out.redColor = lg.color;
+                        }
+                    });
+
+                    out.isValid =
+                        out.greenStart !== null && out.greenEnd !== null && out.greenColor &&
+                        out.yellowStart !== null && out.yellowEnd !== null && out.yellowColor &&
+                        out.redStart !== null && out.redEnd !== null && out.redColor;
+
+                    return out;
+                }
+
+                function normalizeDataStoreRanges(tlc) {
+                    var out = { isValid: false };
+                    if (!tlc || !tlc.ranges || !tlc.ranges.length) return out;
+
+                    function find(id) {
+                        for (var i = 0; i < tlc.ranges.length; i++) {
+                            if (tlc.ranges[i].id === id) return tlc.ranges[i];
+                        }
+                        return null;
+                    }
+
+                    var colors = (tlc && tlc.colors) ? tlc.colors : {};
+
+                    // Expect ids in your stored config
+                    var g = find('achieved');
+                    var y = find('moderatelyAchieved');
+                    var r = find('notAchieved');
+
+                    if (!g || !y || !r) return out;
+
+                    out.greenStart = g.min; out.greenEnd = g.max; out.greenColor = colors.green || '#2ECC71';
+                    out.yellowStart = y.min; out.yellowEnd = y.max; out.yellowColor = colors.yellow || '#F1C40F';
+                    out.redStart = r.min; out.redEnd = r.max; out.redColor = colors.red || '#CD615A';
+                    out.isValid = true;
+
+                    return out;
+                }
+
+                var defaultLegendRanges = normalizeLegendSet(dataParams.defaultLegendSet);
+                var dataStoreRanges = normalizeDataStoreRanges(tlc);
+
+                function fixedRangesToLegendLike(fr) {
+                    // Use DataStore colors first, then default legend colors
+                    var greenC = (dataStoreRanges.isValid && dataStoreRanges.greenColor) ? dataStoreRanges.greenColor : (defaultLegendRanges.greenColor || '#2ECC71');
+                    var yellowC = (dataStoreRanges.isValid && dataStoreRanges.yellowColor) ? dataStoreRanges.yellowColor : (defaultLegendRanges.yellowColor || '#F1C40F');
+                    var redC = (dataStoreRanges.isValid && dataStoreRanges.redColor) ? dataStoreRanges.redColor : (defaultLegendRanges.redColor || '#CD615A');
+
+                    return {
+                        greenStart: fr.greenStart, greenEnd: fr.greenEnd, greenColor: greenC,
+                        yellowStart: fr.yellowStart, yellowEnd: fr.yellowEnd, yellowColor: yellowC,
+                        redStart: fr.redStart, redEnd: fr.redEnd, redColor: redC,
+                        isValid: true
+                    };
+                }
+
+                var rangeCache = Object.create(null);
+
+                function resolveRangesForDe(deId) {
+                    if (rangeCache[deId]) return rangeCache[deId];
+
                     var de = dataParams.dataElementsById[deId];
-                    var ranges = {};
-                    if (de && de.legendSets && de.legendSets.length > 0) {
+                    var picked = null;
+
+                    // 1) Per-indicator legend set (if configured)
+                    if (de && de.legendSets && de.legendSets.length && dataParams.legendSetsById) {
                         for (var i = 0; i < de.legendSets.length; i++) {
-                            var l = dataParams.legendSetsById[de.legendSets[i].id];
-                            ranges = extractRange(l);
-                            if (ranges.isValid) {
-                                break;
-                            }
+                            var ls = dataParams.legendSetsById[de.legendSets[i].id];
+                            var rr = normalizeLegendSet(ls);
+                            if (rr.isValid) { picked = rr; break; }
                         }
                     }
 
-                    if (!ranges.green || !ranges.yellowStart || !ranges.yellowEnd || !ranges.red) {
-                        var l = dataParams.defaultLegendSet;
-                        ranges = extractRange(l);
+                    // 2) DataStore default (appConfig trafficLight)
+                    if (!picked || !picked.isValid) {
+                        if (dataStoreRanges && dataStoreRanges.isValid) picked = dataStoreRanges;
                     }
 
-                    if (!ranges.green || !ranges.yellowStart || !ranges.yellowEnd || !ranges.red) {
-                        ranges = CommonUtils.getFixedRanges(de.descendingIndicatorType);
+                    // 3) Fixed fallback
+                    if (!picked || !picked.isValid) {
+                        var fr = CommonUtils.getFixedRanges(de && de.descendingIndicatorType);
+                        picked = fixedRangesToLegendLike(fr);
                     }
 
-                    if (!dhis2.validation.isNumber(actual) || !dhis2.validation.isNumber(target)) {
-                        color = '#CD615A';
-                        style.printStyle = 'red-background';
-                    } else {
-                        hasPhysicalPerformanceData = true;
-                        /*var t = CommonUtils.getPercent( Math.abs(actual - target), target, true);
-                         if ( t <= ranges.green ){
-                         color = ranges.greenColor;
-                         }
-                         else if( t > ranges.yellowStart && t <= ranges.yellowEnd ){
-                         color = ranges.yellowColor;
-                         }
-                         else if ( t > ranges.red ){
-                         color = ranges.redColor;
-                         }*/
-                        var t = CommonUtils.getPercent(actual, target, true, true);
-                        t = Number(t);
-                        if (de.descendingIndicatorType) {
-                            if (t >= ranges.greenStart && t<=ranges.greenEnd) {
-                                color = ranges.greenColor;
-                                style.printStyle = 'green-background';
-                            } else if (t >= ranges.yellowStart && t <= ranges.yellowEnd) {
-                                color = ranges.yellowColor;
-                                style.printStyle = 'yellow-background';
-                            } else {
-                                color = ranges.redColor;
-                                style.printStyle = 'red-background';
-                            }
-                        } else {
-                            if (t >= ranges.greenStart && t<=ranges.greenEnd) {
-                                color = ranges.greenColor;
-                                style.printStyle = 'green-background';
-                            } else if (t >= ranges.yellowStart && t <= ranges.yellowEnd) {
-                                color = ranges.yellowColor;
-                                style.printStyle = 'yellow-background';
-                            } else {
-                                color = ranges.redColor;
-                                style.printStyle = 'red-background';
-                            }
-                        }
+                    rangeCache[deId] = picked;
+                    return picked;
+                }
+
+                function clamp(v, lo, hi) {
+                    if (v < lo) return lo;
+                    if (v > hi) return hi;
+                    return v;
+                }
+
+                function percentOfTarget(actual, target) {
+                    if (!dhis2.validation.isNumber(actual) || !dhis2.validation.isNumber(target)) return null;
+                    if (Number(target) === 0) return null;
+                    var pct = Number(CommonUtils.getPercent(actual, target, true, true));
+                    return dhis2.validation.isNumber(pct) ? pct : null;
+                }
+
+                function classify(actual, target, deId) {
+                    // policy: 0% is treated as No Data / Constrained
+                    var pct = percentOfTarget(actual, target);
+                    if (pct === null) return { status: 'nodata', pct: null };
+                    if (pct === 0) return { status: 'nodata', pct: 0 };
+
+                    // optional clamp from config
+                    if (tlc && tlc.clampPercentToRange && tlc.clampPercentToRange.length === 2) {
+                        pct = clamp(pct, tlc.clampPercentToRange[0], tlc.clampPercentToRange[1]);
                     }
-                    style.inlineStyle = {"background-color": color};
-                    return style;
-                };
+
+                    hasPhysicalPerformanceData = true;
+
+                    var rng = resolveRangesForDe(deId);
+                    if (pct >= rng.greenStart && pct <= rng.greenEnd) return { status: 'green', pct: pct };
+                    if (pct >= rng.yellowStart && pct <= rng.yellowEnd) return { status: 'yellow', pct: pct };
+                    return { status: 'red', pct: pct };
+                }
+
+                function styleForStatus(status, deId) {
+                    var rng = resolveRangesForDe(deId);
+                    if (status === 'green') return { inlineStyle: { "background-color": rng.greenColor }, printStyle: 'green-background' };
+                    if (status === 'yellow') return { inlineStyle: { "background-color": rng.yellowColor }, printStyle: 'yellow-background' };
+                    // red + nodata -> red for now (can introduce gray later)
+                    return { inlineStyle: { "background-color": rng.redColor }, printStyle: 'red-background' };
+                }
+
+                function povBucket(status) {
+                    if (status === 'green' || status === 'yellow') return 'O';
+                    if (status === 'red') return 'C';
+                    return 'X';
+                }
+
+                function incPov(pov, degId, bucket, periodId) {
+                    var k = degId + '-' + bucket + '-' + periodId;
+                    pov[k] = (pov[k] || 0) + 1;
+                }
+
+                // -----------------------------------------------------------------------------
+                // Build dataHeaders from periodConfig active layout
+                // -----------------------------------------------------------------------------
+                var cfg = dataParams.periodConfig;
+                var layoutKey = cfg.activeLayout || 'option2';
+                var layout = (cfg.layouts && cfg.layouts[layoutKey]) ? cfg.layouts[layoutKey] : null;
+
+                // year -> [{role, label?}, ...] preserving order from config
+                var yearColumns = {};
+                if (layout && layout.columns && layout.columns.length) {
+                    angular.forEach(layout.columns, function (c) {
+                        yearColumns[c.year] = yearColumns[c.year] || [];
+                        yearColumns[c.year].push(c);
+                    });
+                }
+
+                function dimIdForRole(role) {
+                    if (role === 'baseline') return dataParams.baselineDimension.id;
+                    if (role === 'target') return dataParams.targetDimension.id;
+                    if (role === 'actual') return dataParams.actualDimension.id;
+                    return null;
+                }
 
                 angular.forEach(reportPeriods, function (pe) {
                     var colSpan = 0;
-                    var d = $filter('filter')(data, {pe: pe.id});
-                    var targetFilter = {pe: pe.id};
-                    targetFilter[dataParams.bta.category] = dataParams.targetDimension.id;
-                    var targetData = $filter('filter')(data, targetFilter);
-
-                    pe.hasData = d && d.length > 0;
-                    pe.hasTargetData = targetData && targetData.length > 0;
 
                     if (dataParams.displayActionBudgetData) {
+                        // Budget (Action) mode: headers still come from BSR (unchanged)
                         angular.forEach(dataParams.bsr.options, function (op) {
                             colSpan++;
                             dataHeaders.push({
@@ -1247,10 +1309,11 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                 periodStart: pe.startDate,
                                 periodEnd: pe.endDate,
                                 dimensionId: op.id,
-                                dimension: dataParams.bsr.category});
+                                dimension: dataParams.bsr.category
+                            });
                         });
 
-                        //budget-planned-released-spent-percentage headers
+                        // budget ratios (unchanged)
                         colSpan++;
                         dataHeaders.push({
                             name: $translate.instant('budget_released'),
@@ -1261,7 +1324,8 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                             denDimensionId: dataParams.plannedDimension.id,
                             numDimensionId: dataParams.releaseDimension.id,
                             dimensionId: dataParams.plannedDimension.id + '.' + dataParams.releaseDimension.id,
-                            dimension: dataParams.bsr.category});
+                            dimension: dataParams.bsr.category
+                        });
 
                         colSpan++;
                         dataHeaders.push({
@@ -1273,7 +1337,8 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                             denDimensionId: dataParams.plannedDimension.id,
                             numDimensionId: dataParams.spentDimension.id,
                             dimensionId: dataParams.plannedDimension.id + '.' + dataParams.spentDimension.id,
-                            dimension: dataParams.bsr.category});
+                            dimension: dataParams.bsr.category
+                        });
 
                         colSpan++;
                         dataHeaders.push({
@@ -1285,211 +1350,184 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                             denDimensionId: dataParams.releaseDimension.id,
                             numDimensionId: dataParams.spentDimension.id,
                             dimensionId: dataParams.releaseDimension.id + '.' + dataParams.spentDimension.id,
-                            dimension: dataParams.bsr.category});
+                            dimension: dataParams.bsr.category
+                        });
+
+                        // keep old meaning: hasData means "display period" in grouped header
+                        pe.hasData = true;
+                        pe.hasTargetData = true;
                     } else {
-                        angular.forEach(baseLineTargetActualDimensions, function (dm) {
-                            var filterParams = {pe: pe.id};
-                            filterParams[dataParams.bta.category] = dm;
-                            var d = $filter('dataFilter')(data, filterParams);
-                            if (d && d.length > 0) {
-                                colSpan++;
-                                dataHeaders.push({
-                                    periodId: pe.id,
-                                    periodStart: pe.startDate,
-                                    periodEnd: pe.endDate,
-                                    dimensionId: dm,
-                                    dimension: dataParams.bta.category});
-                            }
+                        // Results mode: headers from layout config (Option1..7)
+                        var year = parseInt(pe.name, 10);
+                        var cols = yearColumns[year] || [];
+
+                        pe.hasData = cols.length > 0;
+                        pe.hasTargetData = cols.some(function (c) { return c.role === 'target'; });
+
+                        angular.forEach(cols, function (c) {
+                            var dimId = dimIdForRole(c.role);
+                            if (!dimId) return;
+
+                            colSpan++;
+                            dataHeaders.push({
+                                periodId: pe.id,
+                                periodStart: pe.startDate,
+                                periodEnd: pe.endDate,
+                                dimensionId: dimId,
+                                dimension: dataParams.bta.category,
+                                name: c.label || null
+                            });
                         });
                     }
-                    if (pe.hasData) {
-                        pe.colSpan = colSpan;
-                    }
+
+                    pe.colSpan = colSpan;
                 });
 
-                if (Object.keys(data).length === 0) {
-                    dataExists = false;
-                } else {
-                    dataExists = true;
-                    var completenessNum = 0, completenessDen = 0;
+                // -----------------------------------------------------------------------------
+                // Completeness (match table: per DataElement × AOC × Header)
+                // -----------------------------------------------------------------------------
+                var completenessNum = 0, completenessDen = 0;
 
-                    angular.forEach(dataParams.selectedDataElementGroupSets, function (degs) {
-                        degs.expected = {};
-                        degs.available = {};
+                function existsCell(isActionData, dx, pe, co, dimId) {
+                    var map = isActionData ? bsrValueMap : btaValueMap;
+                    var v = map[makeKey(dx, pe, co, dimId)];
+                    return (v !== undefined && v !== null && v !== '');
+                }
 
-                        var generateCompletenessInfo = function (degs, isActionData) {
-                            angular.forEach(degs.dataElementGroups, function (deg) {
-                                var _deg = $filter('filter')(dataParams.dataElementGroups, {id: deg.id})[0];
-                                angular.forEach(_deg.dataElements, function (de) {
+                angular.forEach(dataParams.selectedDataElementGroupSets, function (degs) {
+                    degs.expected = {};
+                    degs.available = {};
+
+                    var generateCompletenessInfo = function (degs, isActionData) {
+                        angular.forEach(degs.dataElementGroups, function (degRef) {
+                            var deg = dataParams.dataElementGroupsById[degRef.id];
+                            if (!deg || !deg.dataElements) return;
+
+                            angular.forEach(deg.dataElements, function (de) {
+                                if (!de || !de.categoryOptionCombos) return;
+
+                                angular.forEach(de.categoryOptionCombos, function (oc) {
                                     angular.forEach(dataHeaders, function (dh) {
                                         var id = [dh.periodId, dh.dimensionId].join('-');
-                                        if (!degs.available[id]) {
-                                            degs.available[id] = 0;
-                                        }
-                                        if (!degs.expected[id]) {
-                                            degs.expected[id] = 0;
-                                        }
+
+                                        if (!degs.available[id]) degs.available[id] = 0;
+                                        if (!degs.expected[id]) degs.expected[id] = 0;
 
                                         degs.expected[id]++;
                                         completenessDen++;
-                                        if (valueExists(data, dh, de.id, isActionData)) {
+
+                                        if (existsCell(isActionData, de.id, dh.periodId, oc.id, dh.dimensionId)) {
                                             degs.available[id]++;
                                             completenessNum++;
                                         }
                                     });
                                 });
                             });
-                        };
+                        });
+                    };
 
+                    if (dataExists) {
                         generateCompletenessInfo(degs, dataParams.displayActionBudgetData);
+                    }
 
-                        angular.forEach(degs.dataElementGroups, function (_deg) {
-                            var deg = dataParams.dataElementGroupsById[_deg.id];
-                            if (deg && deg.dataElements && deg.dataElements.length > 0) {
-                                var deCount = 0;
-                                var pov = {};
-                                var povPercent = {};
-                                angular.forEach(deg.dataElements, function (de) {
-                                    angular.forEach(de.categoryOptionCombos, function (oc) {
-                                        deCount++;
-                                        dataElementRows++;
-                                        var tableRow = {
-                                            dataElementCode: de.code,
-                                            dataElementId: de.id,
-                                            dataElement: de.displayName + (oc.displayName === 'default' ? '' : ' - ' + oc.displayName),
-                                            dataElementGroup: deg.displayName,
-                                            dataElementGroupSet: degs.displayName,
-                                            values: {},
-                                            hasData: false,
-                                            styles: {}
-                                        };
-                                        tableRows.push(tableRow);
-                                        angular.forEach(dataHeaders, function (dh) {
-                                            if (dataParams.displayActionBudgetData) {
-                                                if (dh.dimensionId === dataParams.plannedDimension.id) {
-                                                    dh.hasBudgetData = true;
-                                                }
-                                                if (dh.isRowData) {
-                                                    var bVal = filterBudgetData(dh, de.id, oc.id, data);
-                                                    if ( bVal !== '' ){
-                                                        tableRow.hasData = true;
-                                                    }
-                                                    tableRow.values[dh.dimensionId + '.' + dh.periodId] = bVal;
-                                                }
-                                                else {
-                                                    var dhId = dataParams.plannedDimension.id + '.' + dataParams.releaseDimension.id;
-                                                    if ( dh.dimensionId ===  dhId ) {
-                                                        var rh = angular.copy(dh);
-                                                        rh.dimensionId = dataParams.releaseDimension.id;
-                                                        var ph = angular.copy(dh);
-                                                        ph.dimensionId = dataParams.plannedDimension.id;
-                                                        var rv = filterBudgetData(rh, de.id, oc.id, data);
-                                                        var pv = filterBudgetData(ph, de.id, oc.id, data);
+                    // -----------------------------------------------------------------------------
+                    // Build table rows + POV
+                    // -----------------------------------------------------------------------------
+                    angular.forEach(degs.dataElementGroups, function (_deg) {
+                        var deg = dataParams.dataElementGroupsById[_deg.id];
+                        if (deg && deg.dataElements && deg.dataElements.length > 0) {
+                            var deCount = 0;
+                            var pov = {};
+                            var povPercent = {};
 
-                                                        var trafficLight = getTrafficLight(rv, pv, de.id, dh.dimensionId);
-                                                        tableRow.styles[dh.dimensionId + '.' + dh.periodId] = trafficLight;
+                            angular.forEach(deg.dataElements, function (de) {
+                                angular.forEach(de.categoryOptionCombos, function (oc) {
+                                    deCount++;
+                                    dataElementRows++;
 
-                                                        if (!pov[deg.id + '-' + 'O-' + dh.periodId]) {
-                                                            pov[deg.id + '-' + 'O-' + dh.periodId] = 0;
-                                                        }
+                                    var tableRow = {
+                                        dataElementCode: de.code,
+                                        dataElementId: de.id,
+                                        dataElement: de.displayName + (oc.displayName === 'default' ? '' : ' - ' + oc.displayName),
+                                        dataElementGroup: deg.displayName,
+                                        dataElementGroupSet: degs.displayName,
+                                        values: {},
+                                        hasData: false,
+                                        styles: {}
+                                    };
+                                    tableRows.push(tableRow);
 
-                                                        if (!pov[deg.id + '-' + 'C-' + dh.periodId]) {
-                                                            pov[deg.id + '-' + 'C-' + dh.periodId] = 0;
-                                                        }
+                                    angular.forEach(dataHeaders, function (dh) {
 
-                                                        if (!pov[deg.id + '-' + 'X-' + dh.periodId]) {
-                                                            pov[deg.id + '-' + 'X-' + dh.periodId] = 0;
-                                                        }
+                                        if (dataParams.displayActionBudgetData) {
 
-                                                        if (!rv || !pv) {
-                                                            pov[deg.id + '-' + 'X-' + dh.periodId] += 1;
-                                                        } else {
-                                                            var t = CommonUtils.getPercent(rv, pv, true, true);
-                                                            t = Number(t);
-                                                            if (t >= 50 && t<=100) {
-                                                                pov[deg.id + '-' + 'O-' + dh.periodId] += 1;
-                                                            } else if (t >= 0 && t <= 49) {
-                                                                pov[deg.id + '-' + 'C-' + dh.periodId] += 1;
-                                                            } else {
-                                                                pov[deg.id + '-' + 'X-' + dh.periodId] += 1;
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                            if (dh.dimensionId === dataParams.plannedDimension.id) {
+                                                dh.hasBudgetData = true;
+                                            }
+
+                                            if (dh.isRowData) {
+                                                var bVal = getBsrValue(de.id, dh.periodId, oc.id, dh.dimensionId);
+                                                if (bVal !== '') tableRow.hasData = true;
+                                                tableRow.values[dh.dimensionId + '.' + dh.periodId] = formatNumber(bVal);
                                             } else {
-                                                if (dh.dimensionId === dataParams.targetDimension.id)
-                                                {
-                                                    dh.hasResultData = true;
-                                                }
-                                                var val = filterResultData(dh, de.id, oc.id, data);
-                                                if ( val !== '' ){
-                                                    tableRow.hasData = true;
-                                                }
-                                                var trafficLight = "";
-                                                if (dh.dimensionId === dataParams.actualDimension.id) {
-                                                    var targetValue = filterTargetData(dh, de.id, oc.id, data);
-                                                    trafficLight = getTrafficLight(val, targetValue, de.id, dh.dimensionId);
-                                                }
-                                                tableRow.styles[dh.dimensionId + '.' + dh.periodId] = trafficLight;
-                                                tableRow.values[dh.dimensionId + '.' + dh.periodId] = val;
+                                                // budget ratio styling + POV (use dh.denDimensionId & dh.numDimensionId)
+                                                if (dh.denDimensionId && dh.numDimensionId) {
+                                                    var numV = getBsrValue(de.id, dh.periodId, oc.id, dh.numDimensionId);
+                                                    var denV = getBsrValue(de.id, dh.periodId, oc.id, dh.denDimensionId);
 
-                                                if (dh.dimensionId === dataParams.actualDimension.id) {
-                                                    var ah = angular.copy(dh);
-                                                    ah.dimensionId = dataParams.actualDimension.id;
-                                                    var th = angular.copy(dh);
-                                                    th.dimensionId = dataParams.targetDimension.id;
-                                                    var av = filterResultData(ah, de.id, oc.id, data);
-                                                    var tv = filterTargetData(th, de.id, oc.id, data);
-
-                                                    if (!pov[deg.id + '-' + 'O-' + dh.periodId]) {
-                                                        pov[deg.id + '-' + 'O-' + dh.periodId] = 0;
-                                                    }
-
-                                                    if (!pov[deg.id + '-' + 'C-' + dh.periodId]) {
-                                                        pov[deg.id + '-' + 'C-' + dh.periodId] = 0;
-                                                    }
-
-                                                    if (!pov[deg.id + '-' + 'X-' + dh.periodId]) {
-                                                        pov[deg.id + '-' + 'X-' + dh.periodId] = 0;
-                                                    }
-
-
-                                                    if (!av || !tv) {
-                                                        pov[deg.id + '-' + 'X-' + dh.periodId] += 1;
-                                                    } else {
-                                                        var t = CommonUtils.getPercent(av, tv, true, true);
-                                                        if (t >= 50 && t<=100) {
-                                                            pov[deg.id + '-' + 'O-' + dh.periodId] += 1;
-                                                        } else if (t >= 0 && t <= 49) {
-                                                            pov[deg.id + '-' + 'C-' + dh.periodId] += 1;
-                                                        } else {
-                                                            pov[deg.id + '-' + 'X-' + dh.periodId] += 1;
-                                                        }
-                                                    }
+                                                    var clsB = classify(numV, denV, de.id);
+                                                    tableRow.styles[dh.dimensionId + '.' + dh.periodId] = styleForStatus(clsB.status, de.id);
+                                                    incPov(pov, deg.id, povBucket(clsB.status), dh.periodId);
                                                 }
                                             }
-                                        });
-                                        dataElementRowIndex[de.id] = dataElementRows;
-                                        angular.forEach(performanceOverviewHeaders, function (ph) {
-                                            var v = pov[deg.id + '-' + ph.id + '-' + ph.period];
-                                            var prcnt = CommonUtils.getPercent(v, deg.dataElements.length, true, true);
-                                            povPercent[deg.id + '-' + ph.id + '-' + ph.period] = prcnt;
-                                        });
+
+                                        } else {
+
+                                            if (dh.dimensionId === dataParams.targetDimension.id) {
+                                                dh.hasResultData = true;
+                                            }
+
+                                            var val = getBtaValue(de.id, dh.periodId, oc.id, dh.dimensionId);
+                                            if (val !== '') tableRow.hasData = true;
+
+                                            // Style + POV only for ACTUAL cells (consistent with your previous approach)
+                                            if (dh.dimensionId === dataParams.actualDimension.id) {
+                                                var targetValue = getBtaValue(de.id, dh.periodId, oc.id, dataParams.targetDimension.id);
+                                                var cls = classify(val, targetValue, de.id);
+
+                                                tableRow.styles[dh.dimensionId + '.' + dh.periodId] = styleForStatus(cls.status, de.id);
+                                                incPov(pov, deg.id, povBucket(cls.status), dh.periodId);
+                                            } else {
+                                                tableRow.styles[dh.dimensionId + '.' + dh.periodId] = "";
+                                            }
+
+                                            tableRow.values[dh.dimensionId + '.' + dh.periodId] = formatNumber(val);
+                                        }
+                                    });
+
+                                    dataElementRowIndex[de.id] = dataElementRows;
+
+                                    // POV percentages (denominator must match how POV counts are incremented: deCount = de×oc)
+                                    angular.forEach(performanceOverviewHeaders, function (ph) {
+                                        var v = pov[deg.id + '-' + ph.id + '-' + ph.period];
+                                        var prcnt = CommonUtils.getPercent(v, deCount, true, true);
+                                        povPercent[deg.id + '-' + ph.id + '-' + ph.period] = prcnt;
                                     });
                                 });
-                                var povTableRow = {
-                                    dataElementSize: deCount,
-                                    dataElementGroup: deg.displayName,
-                                    dataElementGroupId: deg.id,
-                                    dataElementGroupSet: degs.displayName,
-                                    pov: pov,
-                                    povPercent: povPercent
-                                };
-                                povTableRows.push(povTableRow);
-                            }
-                        });
+                            });
+
+                            var povTableRow = {
+                                dataElementSize: deCount,
+                                dataElementGroup: deg.displayName,
+                                dataElementGroupId: deg.id,
+                                dataElementGroupSet: degs.displayName,
+                                pov: pov,
+                                povPercent: povPercent
+                            };
+                            povTableRows.push(povTableRow);
+                        }
                     });
-                }
+                });
 
                 return {
                     dataExists: dataExists,
@@ -1740,10 +1778,10 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
         };
     })
 
-    .service('ProjectService', function ($http, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
+    .service('PolicyService', function ($http, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
         return {
             getByProgram: function (pager, filter, orgUnit, program, optionSets, attributesById, dataElementsById) {
-                var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=created:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
+                var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=createdAt:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
 
                 if ( pager ){
                     var pgSize = pager.pageSize ? pager.pageSize : 50;
@@ -1758,7 +1796,108 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                 }
 
                 var promise = $http.get(url).then(function (response) {
-                    var teis = response.data && response.data.instances ? response.data.instances : [];
+                    var teis = response.data && response.data.trackedEntities ? response.data.trackedEntities : [];
+                    var pager = {};
+                    if ( response.data && response.data.page && response.data.pageSize ){
+                        pager.page = response.data.page;
+                        pager.pageSize = response.data.pageSize;
+                        pager.total = 1;
+                        pager.pageCount = 1;
+                    }
+                    var policies = [];
+                    angular.forEach(teis, function (tei) {
+                        var startDate = '', endDate = '';
+                        if (tei.attributes) {
+                            var policy = {
+                                orgUnit: tei.orgUnit,
+                                trackedEntityInstance: tei.trackedEntity,
+                                style: {},
+                                statusUpdates: [],
+                            };
+                            angular.forEach(tei.attributes, function (att) {
+                                var attribute = attributesById[att.attribute];
+                                var val = att.value;
+                                if (attribute) {
+                                    val = CommonUtils.formatDataValue(null, val, attribute, optionSets, 'USER');
+                                    if (attribute.code === 'AT_PL_START_DATE') {
+                                        startDate = val;
+                                    }
+                                    if (attribute.code === 'AT_PL_END_DATE') {
+                                        endDate = val;
+                                    }
+
+                                    if (attribute.code === 'AT_PRIORITY' && att.value) {
+                                        var style = CommonUtils.getFixedTrafficStyle();
+                                        if (att.value === 'High') {
+                                            policy.style[att.attribute] = style.red;
+                                        }
+                                        if (att.value === 'Normal') {
+                                            policy.style[att.attribute] = style.yellow;
+                                        }
+                                        if (att.value === 'Low') {
+                                            policy.style[att.attribute] = style.green;
+                                        }
+                                    }
+                                }
+                                policy[att.attribute] = val;
+                            });
+                            if (startDate !== '' && endDate !== '') {
+                                var duration = DateUtils.getDifference(startDate, endDate);
+                                policy.duration = isNaN(duration) ? '' : Math.floor(duration / 30);
+                            }
+                        }
+                        if (tei.enrollments && tei.enrollments.length === 1) {
+                            policy.vote = tei.enrollments[0].orgUnitName;
+                            if (tei.enrollments[0].events) {
+                                tei.enrollments[0].events = orderByFilter(tei.enrollments[0].events, '-createdAt').reverse();
+                                var len = tei.enrollments[0].events.length;
+                                angular.forEach(tei.enrollments[0].events, function( ev) {
+                                    if (ev && ev.dataValues && CommonUtils.userHasReadAccess('ACCESSIBLE_PROGRAM_STAGES', 'programStages', ev.programStage) ) {
+                                        ev.createdAt = DateUtils.formatFromApiToUser(ev.createdAt),
+                                        angular.forEach(ev.dataValues, function (dv) {
+                                            if (dataElementsById[dv.dataElement]) {
+                                                var de = dataElementsById[dv.dataElement];
+                                                var val = dv.value;
+                                                if (de) {
+                                                    ev[dv.dataElement] = CommonUtils.formatDataValue(null, val, de, optionSets, 'USER');
+                                                }
+                                            }
+                                        });
+                                        policy.statusUpdates.push( ev )
+                                    }
+                                });
+                            }
+                        }
+                        policies.push(policy);
+                    });
+                    return {policies: policies, pager: pager};
+                }, function (response) {
+                    CommonUtils.errorNotifier(response);
+                });
+                return promise;
+            }
+        };
+    })
+
+    .service('ProjectService', function ($http, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
+        return {
+            getByProgram: function (pager, filter, orgUnit, program, optionSets, attributesById, dataElementsById) {
+                var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=createdAt:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
+
+                if ( pager ){
+                    var pgSize = pager.pageSize ? pager.pageSize : 50;
+                    var pg = pager.page ? pager.page : 1;
+                    pgSize = pgSize > 1 ? pgSize  : 1;
+                    pg = pg > 1 ? pg : 1;
+                    url += '&pageSize=' + pgSize + '&page=' + pg + '&totalPages=false';
+                }
+
+                if ( filter ){
+                    url += "&" + filter;
+                }
+
+                var promise = $http.get(url).then(function (response) {
+                    var teis = response.data && response.data.trackedEntities ? response.data.trackedEntities : [];
                     var pager = {};
                     if ( response.data && response.data.page && response.data.pageSize ){
                         pager.page = response.data.page;

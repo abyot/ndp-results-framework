@@ -15,6 +15,7 @@ ndpFramework.controller('ObjectiveController',
         MetaDataFactory,
         OrgUnitFactory,
         OptionComboService,
+        DataStoreService,
         Analytics,
         CommonUtils,
         FinancialDataService,
@@ -148,61 +149,92 @@ ndpFramework.controller('ObjectiveController',
 
     dhis2.ndp.downloadGroupSets( 'resultsFrameworkObjective' ).then(function(){
 
-        OptionComboService.getBtaDimensions().then(function( response ){
+        DataStoreService.getAppConfig().then(function( appConfig ){
 
-            if( !response || !response.bta || !response.baseline || !response.actual || !response.target ){
-                NotificationService.showNotifcationDialog($translate.instant("error"), $translate.instant("invalid_bta_dimensions"));
-                return;
-            }
+            console.log('app config: ', appConfig)
+            $scope.model.periodConfig = appConfig.period;
+            $scope.model.trafficLightConfig = appConfig.trafficLight;
+        
+            OptionComboService.getBtaDimensions().then(function( response ){
 
-            $scope.model.bta = response.bta;
-            $scope.model.baseLineTargetActualDimensions = $.map($scope.model.bta.options, function(d){return d.id;});
-            $scope.model.actualDimension = response.actual;
-            $scope.model.targetDimension = response.target;
-            $scope.model.baselineDimension = response.baseline;
+                if( !response || !response.bta || !response.baseline || !response.actual || !response.target ){
+                    NotificationService.showNotifcationDialog($translate.instant("error"), $translate.instant("invalid_bta_dimensions"));
+                    return;
+                }
 
-            MetaDataFactory.getAll('dataElements').then(function(dataElements){
+                $scope.model.bta = response.bta;
+                $scope.model.baseLineTargetActualDimensions = $.map($scope.model.bta.options, function(d){return d.id;});
+                $scope.model.actualDimension = response.actual;
+                $scope.model.targetDimension = response.target;
+                $scope.model.baselineDimension = response.baseline;
 
-                $scope.model.dataElementsById = dataElements.reduce( function(map, obj){
-                    map[obj.id] = obj;
-                    return map;
-                }, {});
+                MetaDataFactory.getAll('dataElements').then(function(dataElements){
 
-                MetaDataFactory.getDataElementGroups().then(function(dataElementGroups){
+                    $scope.model.dataElementsById = dataElements.reduce( function(map, obj){
+                        map[obj.id] = obj;
+                        return map;
+                    }, {});
 
-                    $scope.model.dataElementGroups = dataElementGroups;
+                    MetaDataFactory.getDataElementGroups().then(function(dataElementGroups){
 
-                    MetaDataFactory.getAllByProperty('dataElementGroupSets', 'indicatorGroupSetType', 'resultsframeworkobjective').then(function(dataElementGroupSets){
-                        $scope.model.dataElementGroupSets = dataElementGroupSets;
-                        $scope.model.dataElementGroupSets = orderByFilter( $scope.model.dataElementGroupSets, '-displayName').reverse();
+                        $scope.model.dataElementGroups = dataElementGroups;
 
-                        var periods = PeriodService.getPeriods($scope.model.selectedPeriodType, $scope.model.periodOffset, $scope.model.openFuturePeriods);
-                        $scope.model.allPeriods = angular.copy( periods );
-                        $scope.model.periods = periods;
+                        MetaDataFactory.getAllByProperty('dataElementGroupSets', 'indicatorGroupSetType', 'resultsframeworkobjective').then(function(dataElementGroupSets){
+                            $scope.model.dataElementGroupSets = dataElementGroupSets;
+                            $scope.model.dataElementGroupSets = orderByFilter( $scope.model.dataElementGroupSets, '-displayName').reverse();
 
-//                        var selectedPeriodNames = ['2020/21', '2021/22', '2022/23', '2023/24', '2024/25'];
-                        var selectedPeriodNames = ['2023', '2024', '2025', '2026', '2027'];
+                            var periods = PeriodService.getPeriods($scope.model.selectedPeriodType, $scope.model.periodOffset, $scope.model.openFuturePeriods);
+                            $scope.model.allPeriods = angular.copy( periods );
+                            $scope.model.periods = periods;
 
-                        angular.forEach($scope.model.periods, function(pe){
-//                            if(selectedPeriodNames.indexOf(pe.displayName) > -1 ){
-                            if(selectedPeriodNames.indexOf(pe.name) > -1 ){
-                                $scope.model.selectedPeriods.push(pe);
+                            // periodConfigs is the datastore payload
+                            var cfg = $scope.model.periodConfig;
+
+                            // pick active layout
+                            var layoutKey = cfg.activeLayout || 'option2';
+                            var layout = cfg.layouts && cfg.layouts[layoutKey];
+
+                            // fallback if layout missing
+                            if (!layout || !layout.columns || !layout.columns.length) {
+                                layout = { columns: [] };
+                                // as a safe fallback, use baselineYear + planYears if available
+                                if (cfg.baselineYear) layout.columns.push({ year: cfg.baselineYear, role: 'baseline' });
+                                if (cfg.planYears && cfg.planYears.length) {
+                                    cfg.planYears.forEach(function(y){ layout.columns.push({ year: y, role: 'actual' }); });
+                                }
                             }
-                        });
 
-                        //Get orgunits for the logged in user
-                        OrgUnitFactory.getViewTreeRoot().then(function(response) {
-                            $scope.orgUnits = response.organisationUnits;
-                            angular.forEach($scope.orgUnits, function(ou){
-                                ou.show = true;
-                                angular.forEach(ou.children, function(o){
-                                    o.hasChildren = o.children && o.children.length > 0 ? true : false;
-                                });
+                            // unique years from columns
+                            var yearsMap = {};
+                            layout.columns.forEach(function(c){ yearsMap[c.year] = true; });
+
+                            var selectedPeriodNames = Object.keys(yearsMap)   // ['2022','2023',...]
+                                .sort()
+                                .map(function(y){ return String(y); });
+
+                            // reset selectedPeriods
+                            $scope.model.selectedPeriods = [];
+
+                            angular.forEach($scope.model.periods, function(pe){
+                                if (selectedPeriodNames.indexOf(pe.name) > -1) {
+                                    $scope.model.selectedPeriods.push(pe);
+                                }
                             });
-                            $scope.selectedOrgUnit = $scope.orgUnits[0] ? $scope.orgUnits[0] : null;
-                            $scope.model.metaDataCached = true;
-                            $scope.populateMenu();
-                            $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders();
+
+                            //Get orgunits for the logged in user
+                            OrgUnitFactory.getViewTreeRoot().then(function(response) {
+                                $scope.orgUnits = response.organisationUnits;
+                                angular.forEach($scope.orgUnits, function(ou){
+                                    ou.show = true;
+                                    angular.forEach(ou.children, function(o){
+                                        o.hasChildren = o.children && o.children.length > 0 ? true : false;
+                                    });
+                                });
+                                $scope.selectedOrgUnit = $scope.orgUnits[0] ? $scope.orgUnits[0] : null;
+                                $scope.model.metaDataCached = true;
+                                $scope.populateMenu();
+                                $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders();
+                            });
                         });
                     });
                 });
@@ -337,7 +369,9 @@ ndpFramework.controller('ObjectiveController',
                             cost: $scope.model.cost,
                             displayVision2040: true,
                             performanceOverviewHeaders: $scope.model.performanceOverviewHeaders,
-                            displayActionBudgetData: false
+                            displayActionBudgetData: false,
+                            periodConfig: $scope.model.periodConfig,
+                            trafficLightConfig: $scope.model.trafficLightConfig
                         };
 
                         var processedData = Analytics.processData( dataParams );

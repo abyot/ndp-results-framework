@@ -7,47 +7,45 @@
             <div id="performance" class="col-sm-12 table-scroll">
                 <table>
                     <thead>
-                    <tr>
-                        <th class="sticky"></th>
-                        <th class="sticky"></th>
-                        <th class="sticky"></th>
-                        <th class="center sticky" colspan="{{period.colSpan}}" ng-repeat="period in model.reportPeriods"
-                            ng-if="period.hasData">
-                            {{period.name}}
-                        </th>
-                        <!--                        {{period.displayName}}-->
-                    </tr>
-                    <tr>
-                        <!--                        <th class="sticky">{{model.selectedMenu.ndp}} {{'objectives'| translate}}</th>-->
-                        <th class="sticky">Pillars</th>
-                        <th>Outcomes</th>
-                        <th>{{'indicators'| translate}}</th>
-                        <th class="sticky" ng-repeat="header in model.dataHeaders">
-                            {{model.metaData.items[header.dimensionId].name}}
-                        </th>
-                    </tr>
+                        <tr>
+                            <th class="sticky"></th>
+                            <th class="sticky"></th>
+                            <th class="sticky"></th>
+                            <th class="center sticky" colspan="{{period.colSpan}}"
+                                ng-repeat="period in model.reportPeriods" ng-if="period.hasData">
+                                {{period.name}}
+                            </th>
+                        </tr>
+                        <tr>
+                            <th class="sticky">Pillars</th>
+                            <th>Outcomes</th>
+                            <th>{{'indicators'| translate}}</th>
+                            <th class="sticky" ng-repeat="header in model.dataHeaders">
+                                {{model.metaData.items[header.dimensionId].name}}
+                            </th>
+                        </tr>
                     </thead>
                     <tbody id="datatable">
-                    <tr ng-repeat="row in model.tableRows | emptyRowFilter:model.hideEmptyRows">
-                        <td>
-                            {{row.dataElementGroupSet}}
-                        </td>
-                        <td>
-                            {{row.dataElementGroup}}
-                        </td>
-                        <td>
-                            <span ng-if="model.showExplanation">[{{model.commentRow[row.dataElementId]}}]</span>
-                            {{row.dataElement}}
-                            <i ng-click="getIndicatorDictionary(row.dataElementId)"
-                               class="fa fa-info-circle info-icon cursor-pointer hideInPrint" aria-hidden="true"
-                               title="{{'indicator_dictionary'| translate}}"></i>
-                        </td>
-                        <td ng-repeat="dh in model.dataHeaders"
-                            ng-style="row.styles[dh.dimensionId + '.' + dh.periodId].inlineStyle"
-                            ng-class="row.styles[dh.dimensionId + '.' + dh.periodId].printStyle">
-                            {{row.values[dh.dimensionId + '.' + dh.periodId]}}
-                        </td>
-                    </tr>
+                        <tr ng-repeat="row in model.tableRows | emptyRowFilter:model.hideEmptyRows">
+                            <td>
+                                {{row.dataElementGroupSet}}
+                            </td>
+                            <td>
+                                {{row.dataElementGroup}}
+                            </td>
+                            <td>
+                                <span ng-if="model.showExplanation">[{{model.commentRow[row.dataElementId]}}]</span>
+                                {{row.dataElement}}
+                                <i ng-click="getIndicatorDictionary(row.dataElementId)"
+                                    class="fa fa-info-circle info-icon cursor-pointer hideInPrint" aria-hidden="true"
+                                    title="{{'indicator_dictionary'| translate}}"></i>
+                            </td>
+                            <td ng-repeat="dh in model.dataHeaders"
+                                ng-style="row.styles[dh.dimensionId + '.' + dh.periodId].inlineStyle"
+                                ng-class="row.styles[dh.dimensionId + '.' + dh.periodId].printStyle">
+                                {{row.values[dh.dimensionId + '.' + dh.periodId]}}
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
