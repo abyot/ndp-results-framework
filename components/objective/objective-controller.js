@@ -151,7 +151,6 @@ ndpFramework.controller('ObjectiveController',
 
         DataStoreService.getAppConfig().then(function( appConfig ){
 
-            console.log('app config: ', appConfig)
             $scope.model.periodConfig = appConfig.period;
             $scope.model.trafficLightConfig = appConfig.trafficLight;
         

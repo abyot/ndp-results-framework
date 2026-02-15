@@ -12,6 +12,7 @@ ndpFramework.controller('ActionOutputController',
         $filter,
         DateUtils,
         orderByFilter,
+        DataStoreService,
         NotificationService,
         SelectedMenuService,
         PeriodService,
@@ -169,14 +170,10 @@ ndpFramework.controller('ActionOutputController',
 
     dhis2.ndp.downloadGroupSets( 'sub-intervention4action' ).then(function(){
 
-        MetaDataFactory.getAll('legendSets').then(function(legendSets){
+        DataStoreService.getAppConfig().then(function( appConfig ){
 
-            /*angular.forEach(legendSets, function(legendSet){
-                if ( legendSet.isTrafficLight ){
-                    $scope.model.defaultLegendSet = legendSet;
-                }
-                $scope.model.legendSetsById[legendSet.id] = legendSet;
-            });*/
+            $scope.model.periodConfig = appConfig.period;
+            $scope.model.trafficLightConfig = appConfig.trafficLight;
 
             MetaDataFactory.getAll('optionSets').then(function(optionSets){
 
@@ -252,27 +249,40 @@ ndpFramework.controller('ActionOutputController',
                                             $scope.model.dataElementGroupSets = dataElementGroupSets;
 
                                             var periods = PeriodService.getPeriods($scope.model.selectedPeriodType, $scope.model.periodOffset, $scope.model.openFuturePeriods);
-                                            periods = periods.reverse();
                                             $scope.model.allPeriods = angular.copy( periods );
                                             $scope.model.periods = periods;
 
-//                                            var selectedPeriodNames = ['2020/21'];
-                                            var selectedPeriodNames = ['2023'];
-                                            var today = DateUtils.getToday();
-//                                            $scope.model.selectedFiscalYear = '';
-                                            angular.forEach($scope.model.periods, function(pe){
-                                                if ( pe.startDate <= today && pe.endDate <= today ){
-                                                    $scope.model.selectedFiscalYear = pe;
-                                                }
-                                            });
+                                            // periodConfigs is the datastore payload
+                                            var cfg = $scope.model.periodConfig;
 
-                                            if ( $scope.model.selectedFiscalYear ){
-                                                selectedPeriodNames = [$scope.model.selectedFiscalYear.name];
+                                            // pick active layout
+                                            var layoutKey = cfg.activeLayout || 'option2';
+                                            var layout = cfg.layouts && cfg.layouts[layoutKey];
+
+                                            // fallback if layout missing
+                                            if (!layout || !layout.columns || !layout.columns.length) {
+                                                layout = { columns: [] };
+                                                // as a safe fallback, use baselineYear + planYears if available
+                                                if (cfg.baselineYear) layout.columns.push({ year: cfg.baselineYear, role: 'baseline' });
+                                                if (cfg.planYears && cfg.planYears.length) {
+                                                    cfg.planYears.forEach(function(y){ layout.columns.push({ year: y, role: 'actual' }); });
+                                                }
                                             }
 
+                                            // unique years from columns
+                                            var yearsMap = {};
+                                            layout.columns.forEach(function(c){ yearsMap[c.year] = true; });
+
+                                            var selectedPeriodNames = Object.keys(yearsMap)   // ['2022','2023',...]
+                                                .sort()
+                                                .map(function(y){ return String(y); });
+
+                                            // reset selectedPeriods
+                                            $scope.model.selectedPeriods = [];
+
                                             angular.forEach($scope.model.periods, function(pe){
-                                                if(selectedPeriodNames.indexOf(pe.name) > -1 ){
-                                                   $scope.model.selectedPeriods.push(pe);
+                                                if (selectedPeriodNames.indexOf(pe.name) > -1) {
+                                                    $scope.model.selectedPeriods.push(pe);
                                                 }
                                             });
 
@@ -432,7 +442,9 @@ ndpFramework.controller('ActionOutputController',
                         dataElementsById: $scope.model.dataElementsById,
                         legendSetsById: $scope.model.legendSetsById,
                         defaultLegendSet: $scope.model.defaultLegendSet,
-                        displayActionBudgetData: true
+                        displayActionBudgetData: true,
+                        periodConfig: $scope.model.periodConfig,
+                        trafficLightConfig: $scope.model.trafficLightConfig
                     };
 
                     var processedData = Analytics.processData( dataParams );
@@ -456,9 +468,9 @@ ndpFramework.controller('ActionOutputController',
                                 }
                                 var num = row.values[dh.numDimensionId + '.' + dh.periodId];
                                 var den = row.values[dh.denDimensionId + '.' + dh.periodId];
-                                var percent = CommonUtils.getPercent(num, den, true, true);
+                                var percent = CommonUtils.getPercent(CommonUtils.toNumber(num), CommonUtils.toNumber(den), true, true);
                                 row.values[dh.dimensionId + '.' + dh.periodId] = percent;
-                                row.styles[dh.dimensionId + '.' + dh.periodId] = CommonUtils.getTrafficColorForValue( percent );
+                                row.styles[dh.dimensionId + '.' + dh.periodId] = CommonUtils.getTrafficColorForValue( percent, $scope.model.trafficLightConfig );
                             }
                         });
                         $scope.model.tableRows.push( row );

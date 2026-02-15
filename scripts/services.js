@@ -1470,17 +1470,40 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                                 if (bVal !== '') tableRow.hasData = true;
                                                 tableRow.values[dh.dimensionId + '.' + dh.periodId] = formatNumber(bVal);
                                             } else {
-                                                // budget ratio styling + POV (use dh.denDimensionId & dh.numDimensionId)
+                                                // budget ratio value + styling + POV (use dh.denDimensionId & dh.numDimensionId)
                                                 if (dh.denDimensionId && dh.numDimensionId) {
+
+                                                    var key = dh.dimensionId + '.' + dh.periodId;
+
                                                     var numV = getBsrValue(de.id, dh.periodId, oc.id, dh.numDimensionId);
                                                     var denV = getBsrValue(de.id, dh.periodId, oc.id, dh.denDimensionId);
 
+                                                    // ---- 1) Compute percentage for display ----
+                                                    var pctVal = '';
+
+                                                    // Important: allow 0 numerator (valid), but denominator must be numeric and non-zero
+                                                    if (dhis2.validation.isNumber(denV) && Number(denV) !== 0 && dhis2.validation.isNumber(numV)) {
+                                                        pctVal = CommonUtils.getPercent(numV, denV, true, true); // typically returns a number or numeric string
+                                                    }
+
+                                                    // Write the value (ensure 0 renders)
+                                                    if (pctVal === 0 || pctVal === '0') {
+                                                        tableRow.values[key] = formatNumber(0);
+                                                        tableRow.hasData = true;
+                                                    } else {
+                                                        tableRow.values[key] = (pctVal === '' ? '' : formatNumber(pctVal));
+                                                        if (pctVal !== '') tableRow.hasData = true;
+                                                    }
+
+                                                    // ---- 2) Style using the same underlying num/den (not pctVal) ----
                                                     var clsB = classify(numV, denV, de.id);
-                                                    tableRow.styles[dh.dimensionId + '.' + dh.periodId] = styleForStatus(clsB.status, de.id);
+                                                    tableRow.styles[key] = styleForStatus(clsB.status, de.id);
+
+                                                    // ---- 3) POV bucket ----
+                                                    // This mutates `pov` which you later return inside povTableRows.
                                                     incPov(pov, deg.id, povBucket(clsB.status), dh.periodId);
                                                 }
                                             }
-
                                         } else {
 
                                             if (dh.dimensionId === dataParams.targetDimension.id) {

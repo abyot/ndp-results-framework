@@ -293,6 +293,26 @@ var d2Services = angular.module('d2Services', ['ngResource'])
 .service('CommonUtils', function($q, $translate, SessionStorageService, DateUtils, OptionSetService, CurrentSelection, FileService, DialogService){
 
     return {
+        toNumber: function(v) {
+            if (v === null || v === undefined || v === '') return null;
+
+            // Already a number
+            if (typeof v === 'number') return v;
+
+            // Normalize: remove commas, spaces; keep digits, minus, dot
+            var s = String(v).trim();
+
+            // e.g. "100,000" -> "100000"
+            s = s.replace(/,/g, '');
+
+            // If you might have "%" or currency symbols later, this keeps it safe:
+            s = s.replace(/[^\d.\-]/g, '');
+
+            if (s === '' || s === '-' || s === '.' || s === '-.') return null;
+
+            var n = Number(s);
+            return isNaN(n) ? null : n;
+        },
         formatDataValue: function(event, val, obj, optionSets, destination){
             var fileNames = CurrentSelection.getFileNames();
             if(val &&
@@ -764,28 +784,77 @@ var d2Services = angular.module('d2Services', ['ngResource'])
             };
             return style;
         },
-        getTrafficColorForValue: function( val ){
-            var ranges = this.getFixedRanges();
-            var color = '', style = {};
-            if ( val === '' || val === null) {
-                color = ranges.redColor
+        getTrafficColorForValue: function (val, trafficLightConfig) {
+            var style = {};
+            var color = '';
+
+            // Treat ''/null/undefined as "no data"
+            if (val === '' || val === null || val === undefined) {
+                // If config defines a noData style, use it; otherwise legacy red
+                var noDataStyle = (trafficLightConfig && trafficLightConfig.colors && trafficLightConfig.colors.noData) || null;
+                if (noDataStyle) {
+                    style.printStyle = noDataStyle.printStyle || 'red-background';
+                    style.inlineStyle = {"background-color": noDataStyle.color || ''};
+                    return style;
+                }
+                var legacy = this.getFixedRanges();
                 style.printStyle = 'red-background';
-                style.inlineStyle = {"background-color": color};
+                style.inlineStyle = {"background-color": legacy.redColor};
                 return style;
             }
-            val = Number( val );
-            if ( val >= ranges.greenStart && val <= ranges.greenEnd ){
+
+            // numeric conversion (handles "92.3" etc)
+            val = Number(val);
+            if (isNaN(val)) {
+                var legacy2 = this.getFixedRanges();
+                style.printStyle = 'red-background';
+                style.inlineStyle = {"background-color": legacy2.redColor};
+                return style;
+            }
+
+            // --- 1) Use datastore config if provided ---
+            // expected structure:
+            // trafficLightConfig = { ranges:[{min,max,printStyle,id}], colors:{...} }
+            if (trafficLightConfig && trafficLightConfig.ranges && trafficLightConfig.ranges.length) {
+
+                // optional colors map: { achieved:{color,printStyle}, ... } or direct printStyle on range
+                var colors = trafficLightConfig.colors || {};
+
+                // find matching range
+                for (var i = 0; i < trafficLightConfig.ranges.length; i++) {
+                    var r = trafficLightConfig.ranges[i];
+                    if (val >= r.min && val <= r.max) {
+
+                        // determine style
+                        var c = (r.id && colors[r.id]) ? colors[r.id] : null;
+
+                        style.printStyle = (r.printStyle) || (c && c.printStyle) || '';
+                        color = (c && c.color) || '';
+
+                        style.inlineStyle = {"background-color": color};
+                        return style;
+                    }
+                }
+
+                // if out of all ranges, return empty (or legacy red)
+                style.printStyle = '';
+                style.inlineStyle = {};
+                return style;
+            }
+
+            // --- 2) Fallback to legacy fixed ranges ---
+            var ranges = this.getFixedRanges();
+            if (val >= ranges.greenStart && val <= ranges.greenEnd) {
                 color = ranges.greenColor;
                 style.printStyle = 'green-background';
-            }
-            else if( val >= ranges.yellowStart && val <= ranges.yellowEnd ){
+            } else if (val >= ranges.yellowStart && val <= ranges.yellowEnd) {
                 color = ranges.yellowColor;
                 style.printStyle = 'yellow-background';
-            }
-            else {
+            } else {
                 color = ranges.redColor;
                 style.printStyle = 'red-background';
             }
+
             style.inlineStyle = {"background-color": color};
             return style;
         },

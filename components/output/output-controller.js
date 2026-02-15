@@ -19,7 +19,7 @@ ndpFramework.controller('OutputController',
         DataValueService,
         Analytics,
         ClusterDataService,
-        DateUtils) {
+        DataStoreService) {
 
     $scope.model = {
         metaDataCached: false,
@@ -189,7 +189,10 @@ ndpFramework.controller('OutputController',
         }
     };
 
-    MetaDataFactory.getAll('legendSets').then(function(legendSets){
+    DataStoreService.getAppConfig().then(function( appConfig ){
+        $scope.model.periodConfig = appConfig.period;
+        $scope.model.trafficLightConfig = appConfig.trafficLight;
+
         MetaDataFactory.getAll('optionSets').then(function(optionSets){
 
             $scope.model.optionSets = optionSets;
@@ -241,16 +244,36 @@ ndpFramework.controller('OutputController',
                         $scope.model.allPeriods = angular.copy( periods );
                         $scope.model.periods = periods;
 
-//                      var selectedPeriodNames = ['2020/21', '2021/22', '2022/23', '2023/24', '2024/25'];
-                        var selectedPeriodNames = ['2022', '2023', '2024', '2025', '2026', '2027'];
+                        // periodConfigs is the datastore payload
+                        var cfg = $scope.model.periodConfig;
 
-                        var today = DateUtils.getToday();
-                        angular.forEach($scope.model.periods, function(pe){
-                            if ( pe.startDate <= today && pe.endDate >= today ){
-                                $scope.model.selectedFiscalYear = pe;
+                        // pick active layout
+                        var layoutKey = cfg.activeLayout || 'option2';
+                        var layout = cfg.layouts && cfg.layouts[layoutKey];
+
+                        // fallback if layout missing
+                        if (!layout || !layout.columns || !layout.columns.length) {
+                            layout = { columns: [] };
+                            // as a safe fallback, use baselineYear + planYears if available
+                            if (cfg.baselineYear) layout.columns.push({ year: cfg.baselineYear, role: 'baseline' });
+                            if (cfg.planYears && cfg.planYears.length) {
+                                cfg.planYears.forEach(function(y){ layout.columns.push({ year: y, role: 'actual' }); });
                             }
+                        }
 
-                            if(selectedPeriodNames.indexOf(pe.name) > -1){
+                        // unique years from columns
+                        var yearsMap = {};
+                        layout.columns.forEach(function(c){ yearsMap[c.year] = true; });
+
+                        var selectedPeriodNames = Object.keys(yearsMap)   // ['2022','2023',...]
+                            .sort()
+                            .map(function(y){ return String(y); });
+
+                        // reset selectedPeriods
+                        $scope.model.selectedPeriods = [];
+
+                        angular.forEach($scope.model.periods, function(pe){
+                            if (selectedPeriodNames.indexOf(pe.name) > -1) {
                                 $scope.model.selectedPeriods.push(pe);
                             }
                         });
@@ -442,7 +465,9 @@ ndpFramework.controller('OutputController',
                                         legendSetsById: $scope.model.legendSetsById,
                                         defaultLegendSet: $scope.model.defaultLegendSet,
                                         performanceOverviewHeaders: $scope.model.performanceOverviewHeaders,
-                                        displayActionBudgetData: false
+                                        displayActionBudgetData: false,
+                                        periodConfig: $scope.model.periodConfig,
+                                        trafficLightConfig: $scope.model.trafficLightConfig
                                     };
 
                                     var processedData = Analytics.processData( dataParams );
