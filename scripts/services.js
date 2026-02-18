@@ -59,7 +59,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
         };
     })
 
-    .service('DataStoreService', function($http){
+    .service('DataStoreService', function($http, DHIS2URL){
         return {
             getAppConfig: function () {
                 var url = DHIS2URL + '/api/dataStore/ndp-rf/appConfig';

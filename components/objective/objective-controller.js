@@ -147,6 +147,8 @@ ndpFramework.controller('ObjectiveController',
         });
     };
 
+    $rootScope.DHIS2URL = env.dhisConfig.apiRoot;
+
     dhis2.ndp.downloadGroupSets( 'resultsFrameworkObjective' ).then(function(){
 
         DataStoreService.getAppConfig().then(function( appConfig ){

@@ -6,7 +6,8 @@
 var ndpFramework = angular.module('ndpFramework');
 
 ndpFramework.controller('ActionOutputController',
-    function($scope,
+    function($rootScope,
+        $scope,
         $translate,
         $modal,
         $filter,
@@ -167,6 +168,8 @@ ndpFramework.controller('ActionOutputController',
             getBase();
         }
     };
+
+    $rootScope.DHIS2URL = env.dhisConfig.apiRoot;
 
     dhis2.ndp.downloadGroupSets( 'sub-intervention4action' ).then(function(){
 
