@@ -1,0 +1,41 @@
+<div ng-controller="ProjectTrackerController">
+
+    <div class="selection-group hideInPrint">
+        <div class="col-sm-7 green-info-area">
+            <div class="row small-vertical-spacing">
+                <div class="col-sm-2">
+                    {{'programme'| translate}}
+                </div>
+                <div class="col-sm-10">
+                    <input type="text"
+                           class="form-control"
+                           ng-value="(model.selectedProgram.displayName || model.selectedProgram.name || model.selectedProgram.code || '')"
+                           readonly>
+                </div>
+            </div>
+            <div class="row vertical-spacing pull-right">
+                <div class="col-sm-12">
+                    <button type="button"
+                            class="btn btn-primary"
+                            ng-disabled="!selectedOrgUnit || !model.selectedProgram || model.projectFetchStarted"
+                            ng-click="displayReport()">
+                        {{'display_report'| translate}}
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-5 blue-info-area add-small-left-padding">
+            <div ng-include="'views/report-filter/report-filters-orgunit.html'"></div>
+        </div>
+    </div>
+
+    <div ng-if="model.metaDataCached">
+        <div ng-include="'views/horizontal-menu.html'"></div>
+    </div>
+
+    <div ng-if="!model.metaDataCached" class="small-horizontal-spacing">
+        <img src="../../../images/ajax-loader-bar.gif" alt="{{'in_progress'| translate}}"/><br>
+        {{'loading_metadata'| translate}}
+    </div>
+
+</div>

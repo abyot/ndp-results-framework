@@ -1,0 +1,160 @@
+<div class="row" style="margin-left:0px;margin-right:0px;">
+    <div class="col-sm-12" ng-if="model.projectFetchStarted && !model.projectsFetched">
+        <div class="alert alert-info">
+            <img src="../../../images/ajax-loader-bar.gif" alt="{{'in_progress'| translate}}"/><br>
+            {{'fetching_project_tracker_data'| translate}}
+        </div>
+    </div>
+
+    <div class="card-new" ng-if="model.projects.length > 0 && model.projectsFetched" style="padding-top:8px;">
+        <div class="col-sm-12">
+            <div class="hideInPrint row add-small-margin" style="margin-top:6px;margin-bottom:8px;">
+                <div class="col-sm-3">
+                    <label>{{'financial_year'| translate}}</label>
+                    <select class="form-control"
+                            ng-model="model.selectedSummaryYear"
+                            ng-options="year for year in model.summaryYearOptions">
+                        <option value="">{{'all' | translate}}</option>
+                    </select>
+                </div>
+                <div class="col-sm-5">
+                    <label>{{'funding_source'| translate}}</label>
+                    <select class="form-control"
+                            ng-model="model.selectedSummaryDonor"
+                            ng-options="donor for donor in model.summaryDonorOptions">
+                        <option value="">{{'all' | translate}}</option>
+                    </select>
+                </div>
+                <div class="col-sm-4" style="padding-top:24px;">
+                    <div class="btn-group pull-left" role="group" ng-if="!model.selectedSummaryDonor">
+                        <button type="button"
+                                class="btn"
+                                ng-class="model.selectedSummaryTopN === 5 ? 'btn-primary' : 'btn-default'"
+                                ng-click="setSummaryTopN(5)">
+                            {{'top_5'| translate}}
+                        </button>
+                        <button type="button"
+                                class="btn"
+                                ng-class="model.selectedSummaryTopN === 10 ? 'btn-primary' : 'btn-default'"
+                                ng-click="setSummaryTopN(10)">
+                            {{'top_10'| translate}}
+                        </button>
+                        <button type="button"
+                                class="btn"
+                                ng-class="model.selectedSummaryTopN === 20 ? 'btn-primary' : 'btn-default'"
+                                ng-click="setSummaryTopN(20)">
+                            {{'top_20'| translate}}
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-default pull-right"
+                            ng-click="clearSummaryFilters()"
+                            style="height:34px;min-width:64px;">
+                        {{'clear'| translate}}
+                    </button>
+                    <button type="button" class="btn btn-primary pull-right"
+                            ng-click="applySummaryFilters()"
+                            style="margin-right:6px;height:34px;min-width:72px;">
+                        {{'search'| translate}}
+                    </button>
+                </div>
+            </div>
+            <div class="hideInPrint row add-small-margin" style="margin-top:0;margin-bottom:8px;">
+                <span class="dropdown col-sm-12">
+                    <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown"
+                            aria-haspopup="true"
+                            ng-attr-title="{{'download_as'| translate}}"
+                            aria-expanded="false">
+                        <i class="fa fa-download cursor-pointer" style="margin-right:10px"></i>
+                        {{'download_as'| translate}}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><h6 class="dropdown-header">{{'download_as'| translate}}</h6></li>
+                        <li class="divider"></li>
+                        <li><a href ng-click="exportSummaryCsv('fundingBySource')">{{'funding_by_source_csv'| translate}}</a></li>
+                        <li><a href ng-click="exportSummaryCsv('progressDistribution')">{{'progress_distribution_csv'| translate}}</a></li>
+                        <li><a href ng-click="exportSummaryCsv('expenditureTrend')">{{'expenditure_trend_csv'| translate}}</a></li>
+                    </ul>
+                </span>
+            </div>
+
+            <div class="row" style="margin-left:0;margin-right:0;">
+                <div class="col-sm-6" style="padding-left:0;padding-right:6px;">
+                    <div class="small-vertical-spacing bordered-div" style="margin-top:4px;">
+                        <h4 style="margin-top:4px;margin-bottom:8px;">{{'total_funding_by_source'| translate}}</h4>
+                        <table style="width:100%;">
+                            <thead>
+                            <tr>
+                                <th style="width:45%;">{{'funding_source'| translate}}</th>
+                                <th class="right" style="width:35%;">{{'amount_gmd'| translate}}</th>
+                                <th class="right" style="width:20%;">{{'share_pct'| translate}}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr ng-repeat="row in model.fundingBySourceSummary">
+                                <td>{{row.source}}</td>
+                                <td class="right">{{row.amount | number:0}}</td>
+                                <td class="right">{{row.sharePct | number:1}}%</td>
+                            </tr>
+                            <tr ng-if="model.fundingBySourceSummary.length === 0">
+                                <td colspan="3">{{'no_data_to_show' | translate}}</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="col-sm-6" style="padding-left:6px;padding-right:0;">
+                    <div class="small-vertical-spacing bordered-div" style="margin-top:4px;">
+                        <h4 style="margin-top:4px;margin-bottom:8px;">{{'progress_distribution'| translate}}</h4>
+                        <table style="width:100%;">
+                            <thead>
+                            <tr>
+                                <th style="width:45%;">{{'latest_status'| translate}}</th>
+                                <th class="right" style="width:30%;">{{'no_of_projects'| translate}}</th>
+                                <th class="right" style="width:25%;">{{'share_pct'| translate}}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr ng-repeat="row in model.progressDistributionSummary">
+                                <td ng-class="getStatusCellClass(row.status)">{{row.status}}</td>
+                                <td class="right">{{row.count | number:0}}</td>
+                                <td class="right">{{row.sharePct | number:1}}%</td>
+                            </tr>
+                            <tr ng-if="model.progressDistributionSummary.length === 0">
+                                <td colspan="3">{{'no_data_to_show' | translate}}</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="small-vertical-spacing bordered-div" style="margin-top:6px;">
+                <h4 style="margin-top:4px;margin-bottom:8px;">{{'expenditure_trend'| translate}}</h4>
+                <table style="width:100%;">
+                    <thead>
+                    <tr>
+                        <th style="width:35%;">{{'year'| translate}}</th>
+                        <th class="right" style="width:65%;">{{'total_expenditure_gmd'| translate}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr ng-repeat="row in model.expenditureTrendSummary">
+                        <td>{{row.year}}</td>
+                        <td class="right">{{row.amount | number:0}}</td>
+                    </tr>
+                    <tr ng-if="model.expenditureTrendSummary.length === 0">
+                        <td colspan="2">{{'no_data_to_show' | translate}}</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-12" ng-if="model.projects.length === 0 && model.projectsFetched">
+        <div class="alert alert-warning warning-label">
+            {{'no_data_to_show'| translate}}
+        </div>
+    </div>
+</div>

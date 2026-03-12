@@ -206,12 +206,25 @@ font-size: 18px;
                 </a>
             </div>
             <div class="menu-item">
+                <a ng-click="setSelectedMenu({
+                  id: 'PRJT',
+                  domain: 'PRJT',
+                  code: 'projectTracker',
+                  displayName: 'project_tracker',
+                  order: 4,
+                  view: 'components/project-tracker/performance.html'
+                   })">
+                    <span class="icon">📊</span>
+                    {{'project_tracker' | translate}}
+                </a>
+            </div>
+            <div class="menu-item">
                 <a href ng-click="setSelectedMenu({
                       id: 'POAC',
                       domain: 'POAC',
                       code: 'policy',
                       displayName: 'policy_action',
-                      order: 4,
+                      order: 5,
                       view: 'components/policy/performance.html'
                     })">
                     <span class="icon">📜</span>
@@ -286,4 +299,3 @@ font-size: 18px;
         </div>
     </div>
 </div>
-

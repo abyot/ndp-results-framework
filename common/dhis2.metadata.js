@@ -398,6 +398,7 @@ dhis2.metadata.getMetaObjects = function( store, objs, url, filter, storage, db,
                 }
                 else if( store === 'programs' ){
                     _.each(obj.programStages, function(stage){
+                        stage = dhis2.metadata.processMetaDataAttribute( stage );
                         _.each(stage.programStageDataElements, function(pstde){
                             if( pstde.dataElement ){
                                 pstde.dataElement = dhis2.metadata.processMetaDataAttribute( pstde.dataElement );

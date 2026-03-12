@@ -30,7 +30,7 @@
                         {{pager.page}}
                     </a>
 
-                    <span ng-if="model.projects.length === pager.pageSize">
+                    <span ng-if="pager.page < pager.pageCount">
                         <a href ng-click="getPage(pager.page + 1)" title="{{'next'| translate}}" > 
                             &raquo;
                         </a>

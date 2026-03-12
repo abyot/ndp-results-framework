@@ -113,11 +113,19 @@
         "view": "components/project/performance.html"
     },
     {
+        "id": "PRJT",
+        "domain": "PRJT",
+        "code": "projectTracker",
+        "displayName": "project_tracker",
+        "order": 4,
+        "view": "components/project-tracker/performance.html"
+    },
+    {
         "id": "POAC",
         "domain": "POAC",
         "code": "policy",
         "displayName": "policy_action",
-        "order": 4,
+        "order": 5,
         "view": "components/policy/performance.html"
     },
     {

@@ -1,0 +1,339 @@
+<div class="row" style="margin-left:0px;margin-right:0px;">
+    <div class="col-sm-12" ng-if="model.projectFetchStarted && !model.projectsFetched">
+        <div class="alert alert-info">
+            <img src="../../../images/ajax-loader-bar.gif" alt="{{'in_progress'| translate}}"/><br>
+            {{'fetching_project_tracker_data'| translate}}
+        </div>
+    </div>
+    <div class="card-new" ng-if="model.projects.length > 0 && model.projectsFetched" style="padding-top:10px;">
+        <div class="col-sm-12" ng-if="model.projects.length > 0 && model.projectsFetched">
+            <div class="hideInPrint">
+                <div class="row">
+                <span class="dropdown col-sm-12">
+                    <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown"
+                            aria-haspopup="true"
+                            ng-attr-title="{{'download_as'| translate}}"
+                            aria-expanded="false">
+                             <i class="fa fa-download cursor-pointer" style="margin-right:10px"></i>
+                        {{'download_as'| translate}}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><h6 class="dropdown-header">{{'download_as'| translate}}</h6></li>
+                        <li class="divider"></li>
+                        <li><a href ng-click="exportTrackerCsv()">{{'project_list_csv'| translate}}</a></li>
+                        <li><a href onclick="javascript:window.print()">{{'pdf'| translate}}</a></li>
+                    </ul>
+                </span>
+                    <button type="button" class="btn btn-success"
+                            ng-click="model.showProjectFilter = !model.showProjectFilter"
+                            ng-attr-title="{{'search_projects'| translate}}">
+                        <i class="fa fa-search label-font cursor-pointer" style="margin-right:10px"></i>
+                        {{'search'| translate}}
+                    </button>
+                </div>
+                <div class="row add-small-margin vertical-spacing" ng-if="model.showProjectFilter">
+                    <table class="col-sm-12" style="margin-top:10px;">
+                        <tr>
+                            <td class="col-sm-4">{{'funding_source'| translate}}</td>
+                            <td class="col-sm-8">
+                                <select class="form-control"
+                                        ng-model="model.selectedFundingSource"
+                                        ng-options="o.value as o.label for o in model.fundingSourceOptions">
+                                    <option value="">{{'all' | translate}}</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-sm-4">{{'project_area'| translate}}</td>
+                            <td class="col-sm-8">
+                                <select class="form-control"
+                                        ng-model="model.selectedProjectArea"
+                                        ng-options="o.value as o.label for o in model.projectAreaOptions">
+                                    <option value="">{{'all' | translate}}</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-sm-4">{{'latest_status'| translate}}</td>
+                            <td class="col-sm-8">
+                                <select class="form-control"
+                                        ng-model="model.selectedLatestStatus"
+                                        ng-options="o.value as o.label for o in model.latestStatusOptions">
+                                    <option value="">{{'all' | translate}}</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-sm-4">{{'planned_start_date'| translate}}</td>
+                            <td class="col-sm-8">
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <input type="date" class="form-control" ng-model="model.plannedStartFrom" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <input type="date" class="form-control" ng-model="model.plannedStartTo" />
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-sm-4">{{'planned_end_date'| translate}}</td>
+                            <td class="col-sm-8">
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <input type="date" class="form-control" ng-model="model.plannedEndFrom" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <input type="date" class="form-control" ng-model="model.plannedEndTo" />
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="100%">
+                                <button type="button" class="btn btn-default pull-right"
+                                        ng-disabled="model.projectFetchStarted"
+                                        ng-click="clearFilters()">
+                                    {{'clear'| translate}}
+                                </button>
+                                <button type="button" class="btn btn-primary pull-right"
+                                        ng-disabled="model.projectFetchStarted"
+                                        ng-click="searchProjects()">
+                                    {{'search'| translate}}
+                                </button>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="row" style="margin-bottom:10px;">
+                <div class="col-sm-12">
+                    <div class="pt-legend-bar">
+                        <div class="pt-legend-segment pt-traffic-blue">{{'funding_surplus'| translate}}</div>
+                        <div class="pt-legend-segment pt-traffic-green">{{'funding_balanced'| translate}}</div>
+                        <div class="pt-legend-segment pt-traffic-yellow">{{'funding_small_gap'| translate}}</div>
+                        <div class="pt-legend-segment pt-traffic-red">{{'funding_large_gap'| translate}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="exportProjectTrackerTable" class="table-scroll">
+                    <table>
+                        <thead>
+                    <tr>
+                        <th class="sticky cursor-pointer" ng-click="setSort('projectCode')">{{'project_code'| translate}} {{getSortIcon('projectCode')}}</th>
+                        <th class="sticky cursor-pointer" ng-click="setSort('projectTitle')">{{'project_title'| translate}} {{getSortIcon('projectTitle')}}</th>
+                        <th class="sticky">{{'ministry_agency'| translate}}</th>
+                        <th class="sticky cursor-pointer" ng-repeat="att in model.dynamicListAttributes">
+                            {{att.displayName}}
+                        </th>
+                            <th class="sticky right cursor-pointer" ng-click="setSort('estimatedCost')">{{'estimated_cost_gmd'| translate}} {{getSortIcon('estimatedCost')}}</th>
+                            <th class="sticky right cursor-pointer" ng-click="setSort('totalFunding')">{{'total_funding_gmd'| translate}} {{getSortIcon('totalFunding')}}</th>
+                            <th class="sticky right cursor-pointer" ng-click="setSort('totalExpenditure')">{{'total_expenditure_gmd'| translate}} {{getSortIcon('totalExpenditure')}}</th>
+                            <th class="sticky right cursor-pointer" ng-click="setSort('fundingGap')">{{'funding_gap_gmd'| translate}} {{getSortIcon('fundingGap')}}</th>
+                            <th class="sticky cursor-pointer" ng-click="setSort('latestStatus')">{{'latest_status'| translate}} {{getSortIcon('latestStatus')}}</th>
+                            <th class="sticky cursor-pointer" ng-repeat="de in model.dynamicReportDataElements">
+                                {{de.displayName}}
+                            </th>
+                        </tr>
+                        </thead>
+
+                        <tbody ng-repeat="project in model.projectsPage">
+                    <tr ng-click="getProjectDetails(project)">
+                        <td class="vertical-center cursor-pointer"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.projectCode}}</span></td>
+                        <td class="vertical-center word-wrap cursor-pointer"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.projectTitle}}</span></td>
+                        <td class="vertical-center word-wrap cursor-pointer"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.ministry}}</span></td>
+                        <td class="vertical-center word-wrap cursor-pointer"
+                            ng-repeat="att in model.dynamicListAttributes">
+                            <span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">
+                                {{project.dynamicAttributeValues[att.id]}}
+                            </span>
+                        </td>
+                        <td class="vertical-center right cursor-pointer"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.estimatedCost | number:0}}</span></td>
+                        <td class="vertical-center right cursor-pointer"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.totalFunding | number:0}}</span></td>
+                        <td class="vertical-center right cursor-pointer"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.totalExpenditure | number:0}}</span></td>
+                        <td class="vertical-center right cursor-pointer" ng-class="getFundingGapCellClass(project)"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.fundingGap | number:0}}</span></td>
+                        <td class="vertical-center cursor-pointer" ng-class="getStatusCellClass(project.latestStatus)"><span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.latestStatus}}</span></td>
+                        <td class="vertical-center word-wrap cursor-pointer"
+                            ng-repeat="de in model.dynamicReportDataElements">
+                            <span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">
+                                {{project.dynamicReportValues[de.id]}}
+                            </span>
+                        </td>
+                    </tr>
+
+                    <tr ng-if="model.showProjectDetails && model.selectedProject.trackedEntityInstance === project.trackedEntityInstance">
+                        <td colspan="100%">
+                            <div class="vertical-spacing selected-row-container">
+                                <div class="small-vertical-spacing bordered-div">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>{{'total_funding_gmd'| translate}}</th>
+                                            <th>{{'total_expenditure_gmd'| translate}}</th>
+                                            <th>{{'funding_gap_gmd'| translate}}</th>
+                                            <th>
+                                                {{'execution_rate_pct'| translate}}
+                                                <i class="fa fa-info-circle info-icon cursor-pointer"
+                                                   ng-click="showMetricInfo('executionRate', $event)"
+                                                   ng-attr-title="{{'execution_rate_help'| translate}}"></i>
+                                            </th>
+                                            <th>
+                                                {{'latest_physical_progress_pct'| translate}}
+                                                <i class="fa fa-info-circle info-icon cursor-pointer"
+                                                   ng-click="showMetricInfo('latestPhysicalProgress', $event)"
+                                                   ng-attr-title="{{'latest_physical_progress_help'| translate}}"></i>
+                                            </th>
+                                            <th>
+                                                {{'progress_trend_pp'| translate}}
+                                                <i class="fa fa-info-circle info-icon cursor-pointer"
+                                                   ng-click="showMetricInfo('progressTrend', $event)"
+                                                   ng-attr-title="{{'progress_trend_help'| translate}}"></i>
+                                            </th>
+                                            <th>{{'no_of_donors'| translate}}</th>
+                                            <th>{{'top_donor'| translate}}</th>
+                                            <th>{{'latest_status'| translate}}</th>
+                                            <th>{{'latest_progress_date'| translate}}</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr>
+                                            <td class="right">{{project.totalFunding | number:0}}</td>
+                                            <td class="right">{{project.totalExpenditure | number:0}}</td>
+                                            <td class="right" ng-class="getFundingGapCellClass(project)">{{project.fundingGap | number:0}}</td>
+                                            <td class="right">{{project.executionRatePct | number:1}}%</td>
+                                            <td class="right">{{project.latestPhysicalProgress !== '' ? (project.latestPhysicalProgress + '%') : ''}}</td>
+                                            <td class="right">{{formatTrend(project.progressTrendPp)}}</td>
+                                            <td class="right">{{project.donorCount}}</td>
+                                            <td>{{project.topDonor}}</td>
+                                            <td ng-class="getStatusCellClass(project.latestStatus)">{{project.latestStatus}}</td>
+                                            <td>{{project.latestProgressDate}}</td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="small-vertical-spacing bordered-div">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>{{'funding_source'| translate}}</th>
+                                            <th class="right">{{'amount_gmd'| translate}}</th>
+                                            <th class="right">{{'share_pct'| translate}}</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr ng-repeat="s in project.fundingBySource">
+                                            <td>{{s.source}}</td>
+                                            <td class="right">{{s.amount | number:0}}</td>
+                                            <td class="right">{{s.sharePct | number:1}}%</td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="small-vertical-spacing bordered-div">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>{{'year'| translate}}</th>
+                                            <th class="right">{{'amount_gmd'| translate}}</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr ng-repeat="fy in project.fundingByYear">
+                                            <td>{{fy.year}}</td>
+                                            <td class="right">{{fy.amount | number:0}}</td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="small-vertical-spacing bordered-div">
+                                    <button type="button" class="btn btn-info btn-sm pull-right"
+                                            ng-click="project.showFundingEvents = !project.showFundingEvents">
+                                        {{project.showFundingEvents ? ('hide_raw_funding_events'| translate) : ('show_raw_funding_events'| translate)}}
+                                    </button>
+                                    <div class="clearfix small-vertical-spacing"></div>
+                                    <table ng-if="project.showFundingEvents">
+                                        <thead>
+                                        <tr>
+                                            <th>{{'date'| translate}}</th>
+                                            <th>{{'year'| translate}}</th>
+                                            <th>{{'funding_source'| translate}}</th>
+                                            <th class="right">{{'amount_gmd'| translate}}</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr ng-repeat="f in project.fundingRows">
+                                            <td>{{f.date}}</td>
+                                            <td>{{f.year}}</td>
+                                            <td>{{f.source}}</td>
+                                            <td class="right">{{f.amount | number:0}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="3"><strong>{{'total'| translate}}</strong></td>
+                                            <td class="right"><strong>{{project.totalFunding | number:0}}</strong></td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="small-vertical-spacing bordered-div">
+                                    <button type="button" class="btn btn-info btn-sm pull-right"
+                                            ng-click="project.showProgressEvents = !project.showProgressEvents">
+                                        {{project.showProgressEvents ? ('hide_raw_progress_events'| translate) : ('show_raw_progress_events'| translate)}}
+                                    </button>
+                                    <div class="clearfix small-vertical-spacing"></div>
+                                    <table ng-if="project.showProgressEvents">
+                                        <thead>
+                                        <tr>
+                                            <th>{{'date'| translate}}</th>
+                                            <th>{{'project_status'| translate}}</th>
+                                            <th class="right">{{'physical_progress_pct'| translate}}</th>
+                                            <th class="right">{{'expenditure_gmd'| translate}}</th>
+                                            <th class="right">{{'kpi_1'| translate}}</th>
+                                            <th class="right">{{'kpi_2'| translate}}</th>
+                                            <th>{{'narrative'| translate}}</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr ng-repeat="p in project.progressRows">
+                                            <td>{{p.date}}</td>
+                                            <td>{{p.status}}</td>
+                                            <td class="right">{{p.physicalProgress}}</td>
+                                            <td class="right">{{p.expenditure | number:0}}</td>
+                                            <td class="right">{{p.kpi1}}</td>
+                                            <td class="right">{{p.kpi2}}</td>
+                                            <td class="word-wrap">{{p.narrative}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><strong>{{'total_and_avg'| translate}}</strong></td>
+                                            <td class="right"><strong>{{project.avgPhysicalProgress | number:1}}%</strong></td>
+                                            <td class="right"><strong>{{project.totalExpenditure | number:0}}</strong></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="hideInPrint">
+                <basic-serverside-paginator></basic-serverside-paginator>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-12" ng-if="model.projects.length === 0 && model.projectsFetched">
+        <div class="alert alert-warning warning-label">
+            {{'no_data_to_show'| translate}}
+        </div>
+    </div>
+</div>

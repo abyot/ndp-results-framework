@@ -773,6 +773,50 @@
             background-color: #CD615A !important;
         }
 
+        .pt-traffic-green {
+            background-color: #339D73 !important;
+            color: #fff !important;
+            font-weight: 600;
+        }
+
+        .pt-traffic-yellow {
+            background-color: #F4CD4D !important;
+            color: #222 !important;
+            font-weight: 600;
+        }
+
+        .pt-traffic-red {
+            background-color: #CD615A !important;
+            color: #fff !important;
+            font-weight: 600;
+        }
+
+        .pt-traffic-blue {
+            background-color: #4F83CC !important;
+            color: #fff !important;
+            font-weight: 600;
+        }
+
+        .pt-legend-bar {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin-top: 6px;
+        }
+
+        .pt-legend-segment {
+            display: table-cell;
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 600;
+            border-right: 1px solid #ffffff;
+        }
+
+        .pt-legend-segment:last-child {
+            border-right: none;
+        }
+
         .main-horizontal-menu>a:link {
             background: #b4cdcd !important;
         }
