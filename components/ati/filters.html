@@ -1,22 +1,24 @@
 <div class="small-vertical-spacing hideInPrint">
     <div class="selection-group">
         <div class="col-sm-7 green-info-area">
-            <div class="row small-vertical-spacing" ng-if="model.availableGroupSets.length > 0">
+            <div class="row small-vertical-spacing"
+                 ng-repeat="selector in model.hierarchySelectors track by selector.type"
+                 ng-if="selector.options.length > 0">
                 <div class="col-sm-3">
-                    {{ model.selectedMenu.thematicArea | translate}}
+                    {{ selector.labelKey | translate }}
                 </div>
                 <div class="col-sm-9">
-                    <ui-select ng-model="model.selectedGroupSet"
+                    <ui-select ng-model="selector.selected"
                             theme="select2"
                             style="width:100%;"
-                            on-select="applyGroupSetFilter()">
+                            on-select="applyHierarchyFilter()">
                         <ui-select-match allow-clear="true" class="form-control-ui-select"
                                         placeholder="{{'all' | translate}}">
                             {{$select.selected.displayName}}
                         </ui-select-match>
 
-                        <ui-select-choices repeat="gs in model.availableGroupSets | orderBy:'displayName' | filter:$select.search">
-                            <span ng-bind-html="gs.displayName | highlight:$select.search"></span>
+                        <ui-select-choices repeat="option in selector.options | filter:$select.search">
+                            <span ng-bind-html="option.displayName | highlight:$select.search"></span>
                         </ui-select-choices>
                     </ui-select>
                 </div>

@@ -6,8 +6,8 @@
             <table ng-if="model.selectedMenu.thematicArea !== 'activity'">
                 <thead>
                     <tr>
-                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea"></th>
-                        <th class="sticky"></th>
+                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea" colspan="{{2 + model.extraColumns.length}}"></th>
+                        <th class="sticky" ng-if="!model.selectedMenu.hasThematicArea" colspan="{{1 + model.extraColumns.length}}"></th>
                         <th class="sticky"></th>
                         <th class="center sticky" colspan="{{model.dataHeaders.length / model.selectedPeriods.length }}"
                             ng-repeat="period in model.selectedPeriods | orderBy:'id'">
@@ -15,9 +15,12 @@
                         </th>
                     </tr>
                     <tr>
-                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea">{{model.selectedMenu.thematicArea
+                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea">{{model.ownerColumnLabel
                             | translate}}</th>
-                        <th class="sticky">{{model.selectedMenu.displayName | translate}}</th>
+                        <th class="sticky" ng-if="model.extraColumns.indexOf('goal') !== -1">{{'goal' | translate}}</th>
+                        <th class="sticky" ng-if="model.extraColumns.indexOf('outcome') !== -1">{{'outcome' | translate}}</th>
+                        <th class="sticky" ng-if="model.extraColumns.indexOf('output') !== -1">{{'output' | translate}}</th>
+                        <th class="sticky">{{(model.currentLevelColumnLabel || model.selectedMenu.displayName) | translate}}</th>
                         <th>{{'indicators'| translate}}</th>
                         <th class="sticky center" ng-repeat="header in model.dataHeaders">
                             {{header.displayName}}
@@ -27,10 +30,19 @@
                 <tbody>
                     <tr ng-repeat="de in model.dataElements
                             track by ((de.id || de.uid) + '|' + (de.parent || '') + '|' + (de.ownerName || ''))">
-                        <td ng-if="de.rowSpan && model.selectedMenu.hasThematicArea" rowspan="{{de.rowSpan}}">
+                        <td ng-if="de.ownerNameRowSpan && model.selectedMenu.hasThematicArea" rowspan="{{de.ownerNameRowSpan}}">
                             {{de.ownerName}}
                         </td>
-                        <td ng-if="de.rowSpan" rowspan="{{de.rowSpan}}">
+                        <td ng-if="de.goalNameRowSpan && model.extraColumns.indexOf('goal') !== -1" rowspan="{{de.goalNameRowSpan}}">
+                            {{de.goalName}}
+                        </td>
+                        <td ng-if="de.outcomeNameRowSpan && model.extraColumns.indexOf('outcome') !== -1" rowspan="{{de.outcomeNameRowSpan}}">
+                            {{de.outcomeName}}
+                        </td>
+                        <td ng-if="de.outputNameRowSpan && model.extraColumns.indexOf('output') !== -1" rowspan="{{de.outputNameRowSpan}}">
+                            {{de.outputName}}
+                        </td>
+                        <td ng-if="de.parentRowSpan" rowspan="{{de.parentRowSpan}}">
                             {{de.parent}}
                         </td>
                         <td>
@@ -38,7 +50,10 @@
                         </td>
                         <td ng-repeat="dh in model.dataHeaders track by (dh.periodId + '|' + dh.dimensionId)" ng-class="(dh.dimensionId === 'actualAchievement' || dh.dimensionId === 'budget_utilization')
                                     ? ('tl-cell ' + tlClass(getDV(de.id, dh)))
-                                    : ''">
+                                    : ''"
+                            ng-style="(dh.dimensionId === 'actualAchievement' || dh.dimensionId === 'budget_utilization')
+                                    ? tlStyle(getDV(de.id, dh))
+                                    : {}">
                             {{ getDV(de.id, dh) }}
                         </td>
                     </tr>
@@ -47,9 +62,12 @@
             <table ng-if="model.selectedMenu.thematicArea === 'activity'">
                 <thead>
                     <tr>
-                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea">{{model.selectedMenu.thematicArea | translate}}</th>
-                        <th class="sticky">{{model.selectedMenu.displayName | translate}}</th>
-                        <th class="sticky">{{'indicators' | translate}}</th>
+                        <th class="sticky" ng-if="model.selectedMenu.hasThematicArea">{{model.ownerColumnLabel | translate}}</th>
+                        <th class="sticky" ng-if="model.extraColumns.indexOf('goal') !== -1">{{'goal' | translate}}</th>
+                        <th class="sticky" ng-if="model.extraColumns.indexOf('outcome') !== -1">{{'outcome' | translate}}</th>
+                        <th class="sticky" ng-if="model.extraColumns.indexOf('output') !== -1">{{'output' | translate}}</th>
+                        <th class="sticky" ng-if="model.extraColumns.indexOf('workstream') !== -1">{{'workstream' | translate}}</th>
+                        <th class="sticky">{{'activity' | translate}}</th>
 
                         <th class="sticky center" ng-repeat="period in model.selectedPeriods | orderBy:'id'">
                             {{period.name}}
@@ -59,18 +77,29 @@
 
                 <tbody>
                     <tr ng-repeat="de in model.dataElements track by (de.id + '|' + (de.parentId || de.parent || ''))">
-                        <td ng-if="de.rowSpan && model.selectedMenu.hasThematicArea" rowspan="{{de.rowSpan}}">
+                        <td ng-if="de.ownerNameRowSpan && model.selectedMenu.hasThematicArea" rowspan="{{de.ownerNameRowSpan}}">
                             {{de.ownerName}}
                         </td>
-                        <td ng-if="de.rowSpan" rowspan="{{de.rowSpan}}">
+                        <td ng-if="de.goalNameRowSpan && model.extraColumns.indexOf('goal') !== -1" rowspan="{{de.goalNameRowSpan}}">
+                            {{de.goalName}}
+                        </td>
+                        <td ng-if="de.outcomeNameRowSpan && model.extraColumns.indexOf('outcome') !== -1" rowspan="{{de.outcomeNameRowSpan}}">
+                            {{de.outcomeName}}
+                        </td>
+                        <td ng-if="de.outputNameRowSpan && model.extraColumns.indexOf('output') !== -1" rowspan="{{de.outputNameRowSpan}}">
+                            {{de.outputName}}
+                        </td>
+                        <td ng-if="de.workstreamNameRowSpan && model.extraColumns.indexOf('workstream') !== -1" rowspan="{{de.workstreamNameRowSpan}}">
+                            {{de.workstreamName}}
+                        </td>
+                        <td ng-if="de.parentRowSpan" rowspan="{{de.parentRowSpan}}">
                             {{de.parent}}
                         </td>
 
-                        <td>{{de.displayName}}</td>
-
                         <td ng-repeat="period in model.selectedPeriods | orderBy:'id'"
                             ng-init="v = getTextValue(de.id, period.id)"
-                             ng-class="'tl-cell ' + statusTlClass(v)">
+                             ng-class="'tl-cell ' + statusTlClass(v)"
+                             ng-style="statusTlStyle(v)">
                             {{ v }}
                         </td>
                     </tr>

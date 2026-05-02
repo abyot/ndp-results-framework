@@ -164,7 +164,7 @@
                         "domain": "PJA",
                         "code": "projectActivity",
                         "order": 5,
-                        "displayName": "activity_status",
+                        "displayName": "activity",
                         "thematicArea": "activity",
                         "hasThematicArea": true,
                         "show": true,

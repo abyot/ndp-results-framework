@@ -43,6 +43,12 @@ html, body {
 }
 
 @media print {   
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
     .not-for-screen {
         display: block;
     }
@@ -103,6 +109,7 @@ html, body {
     .table-scroll td {
         border: 1px solid  !important;
         border-collapse: collapse !important;
+        background-clip: padding-box !important;
     }
     
     .table-scroll th,
@@ -122,6 +129,15 @@ html, body {
 
     .table-scroll thead tr:nth-child(2) th {
         top: 32px;
+    }
+
+    .table-scroll th {
+        background: #bbd1ee !important;
+        color: #333 !important;
+    }
+
+    .table-scroll tr:nth-child(even) {
+        background-color: #f2f2f2 !important;
     }
       
     .red-background {
@@ -154,10 +170,34 @@ html, body {
         color: #000;
     }
 
-    .tl-cell { font-weight: 600; border-radius: 4px; padding: 4px 6px; }
-    .tl-green { background: #339D73 !important; color: #fff; }
-    .tl-amber { background: #F4CD4D !important; color: #000; }
-    .tl-red   { background: #CD615A !important; color: #fff; }
+    .tl-cell {
+        font-weight: 600;
+        border-radius: 4px;
+        padding: 4px 6px;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .tl-green {
+        background-color: #339D73 !important;
+        color: #fff !important;
+        box-shadow: inset 0 0 0 9999px #339D73 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .tl-amber {
+        background-color: #F4CD4D !important;
+        color: #000 !important;
+        box-shadow: inset 0 0 0 9999px #F4CD4D !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .tl-red   {
+        background-color: #CD615A !important;
+        color: #fff !important;
+        box-shadow: inset 0 0 0 9999px #CD615A !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
 
 }
 
