@@ -124,17 +124,19 @@
                     <tr>
                         <th class="sticky cursor-pointer" ng-click="setSort('projectCode')">{{'project_code'| translate}} {{getSortIcon('projectCode')}}</th>
                         <th class="sticky cursor-pointer" ng-click="setSort('projectTitle')">{{'project_title'| translate}} {{getSortIcon('projectTitle')}}</th>
-                        <th class="sticky">{{'ministry_agency'| translate}}</th>
-                        <th class="sticky cursor-pointer" ng-repeat="att in model.dynamicListAttributes">
-                            {{att.displayName}}
+                        <th class="sticky cursor-pointer" ng-click="setSort('ministry')">{{'ministry_agency'| translate}} {{getSortIcon('ministry')}}</th>
+                        <th class="sticky cursor-pointer" ng-repeat="att in model.dynamicListAttributes"
+                            ng-click="setSort('dynamicAttribute:' + att.id)">
+                            {{att.displayName}} {{getSortIcon('dynamicAttribute:' + att.id)}}
                         </th>
                             <th class="sticky right cursor-pointer" ng-click="setSort('estimatedCost')">{{'estimated_cost_gmd'| translate}} {{getSortIcon('estimatedCost')}}</th>
                             <th class="sticky right cursor-pointer" ng-click="setSort('totalFunding')">{{'total_funding_gmd'| translate}} {{getSortIcon('totalFunding')}}</th>
                             <th class="sticky right cursor-pointer" ng-click="setSort('totalExpenditure')">{{'total_expenditure_gmd'| translate}} {{getSortIcon('totalExpenditure')}}</th>
                             <th class="sticky right cursor-pointer" ng-click="setSort('fundingGap')">{{'funding_gap_gmd'| translate}} {{getSortIcon('fundingGap')}}</th>
                             <th class="sticky cursor-pointer" ng-click="setSort('latestStatus')">{{'latest_status'| translate}} {{getSortIcon('latestStatus')}}</th>
-                            <th class="sticky cursor-pointer" ng-repeat="de in model.dynamicReportDataElements">
-                                {{de.displayName}}
+                            <th class="sticky cursor-pointer" ng-repeat="de in model.dynamicReportDataElements"
+                                ng-click="setSort('dynamicReport:' + de.id)">
+                                {{de.displayName}} {{getSortIcon('dynamicReport:' + de.id)}}
                             </th>
                         </tr>
                         </thead>

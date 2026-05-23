@@ -105,16 +105,17 @@
                     <table>
                         <thead>
                         <tr>
-                            <th class="sticky">
-                                {{'vote' | translate}}
+                            <th class="sticky cursor-pointer" ng-click="setSort('vote')">
+                                {{'vote' | translate}} {{getSortIcon('vote')}}
                             </th>
-                            <th class="sticky"
+                            <th class="sticky cursor-pointer"
+                                ng-click="setSort('attr:' + att.trackedEntityAttribute.id)"
                                 ng-repeat="att in model.selectedProgram.programTrackedEntityAttributes | orderBy: 'sortOrder' | filter: {displayInList: true}">
-                                {{att.trackedEntityAttribute.displayName}}
+                                {{att.trackedEntityAttribute.displayName}} {{getSortIcon('attr:' + att.trackedEntityAttribute.id)}}
                             </th>
                         </tr>
                         </thead>
-                        <tbody ng-repeat="project in model.projects">
+                        <tbody ng-repeat="project in model.projectsPage">
                         <tr ng-click="getProjectDetails(project)">
                             <td class="vertical-center cursor-pointer">
                                 <span ng-class="{'selected-row': project.trackedEntityInstance === model.selectedProject.trackedEntityInstance}">{{project.vote}}</span>
@@ -162,5 +163,4 @@
     </div>
 
 </div>
-
 

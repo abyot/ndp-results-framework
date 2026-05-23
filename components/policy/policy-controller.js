@@ -19,6 +19,9 @@ ndpFramework.controller('PolicyController',
         data: null,
         reportReady: false,
         dataExists: false,
+        policies: [],
+        policiesRaw: [],
+        policiesPage: [],
         dataHeaders: [],
         optionSetsById: [],
         optionSets: [],
@@ -38,7 +41,9 @@ ndpFramework.controller('PolicyController',
         timePerformance: [],
         costPerformance: [],
         showProjectFilter: false,
-        filterText: {}
+        filterText: {},
+        sortBy: 'vote',
+        sortDesc: false
     };
 
     //Paging
@@ -95,6 +100,8 @@ ndpFramework.controller('PolicyController',
     $scope.fetchProgramDetails = function(){
         $scope.pager = {pageSize: 50, page: 1, toolBarDisplay: 5};
         $scope.model.filterText = {};
+        $scope.model.sortBy = 'vote';
+        $scope.model.sortDesc = false;
         if( $scope.model.selectedMenu && $scope.model.selectedMenu.code && $scope.model.selectedProgram && $scope.model.selectedProgram.id && $scope.model.selectedProgram.programTrackedEntityAttributes ){
 
             angular.forEach($scope.model.selectedProgram.programTrackedEntityAttributes, function(pta){
@@ -113,6 +120,90 @@ ndpFramework.controller('PolicyController',
         }
     };
 
+    function isTextSortField(field) {
+        return field === 'vote' || String(field || '').indexOf('attr:') === 0;
+    }
+
+    function getPolicySortValue(policy, field) {
+        if (!policy) {
+            return '';
+        }
+        if (String(field || '').indexOf('attr:') === 0) {
+            return policy[field.substring('attr:'.length)] || '';
+        }
+        return policy[field];
+    }
+
+    function compareSortValues(a, b) {
+        var aMissing = a === null || a === undefined || a === '';
+        var bMissing = b === null || b === undefined || b === '';
+        if (aMissing && bMissing) {
+            return 0;
+        }
+        if (aMissing) {
+            return 1;
+        }
+        if (bMissing) {
+            return -1;
+        }
+        if (angular.isNumber(a) && angular.isNumber(b)) {
+            return a === b ? 0 : (a < b ? -1 : 1);
+        }
+        var aText = String(a).toLowerCase();
+        var bText = String(b).toLowerCase();
+        if (aText === bText) {
+            return 0;
+        }
+        return aText < bText ? -1 : 1;
+    }
+
+    function updatePagedPolicies() {
+        var policies = $scope.model.policies || [];
+        var pageSize = $scope.pager.pageSize > 0 ? parseInt($scope.pager.pageSize, 10) : 50;
+        if (isNaN(pageSize) || pageSize < 1) {
+            pageSize = 50;
+        }
+        var pageCount = Math.max(1, Math.ceil(policies.length / pageSize));
+        var page = $scope.pager.page > 0 ? parseInt($scope.pager.page, 10) : 1;
+        if (isNaN(page) || page < 1) {
+            page = 1;
+        }
+        if (page > pageCount) {
+            page = pageCount;
+        }
+        var start = (page - 1) * pageSize;
+        var end = start + pageSize;
+
+        $scope.pager.page = page;
+        $scope.pager.pageSize = pageSize;
+        $scope.pager.total = policies.length;
+        $scope.pager.length = policies.length;
+        $scope.pager.pageCount = pageCount;
+        $scope.pager.toolBarDisplay = 5;
+        $scope.model.policiesPage = policies.slice(start, end);
+
+        Paginator.setPage($scope.pager.page);
+        Paginator.setPageCount($scope.pager.pageCount);
+        Paginator.setPageSize($scope.pager.pageSize);
+        Paginator.setItemCount($scope.pager.total);
+    }
+
+    function applySorting() {
+        var policies = angular.copy($scope.model.policiesRaw || []);
+        policies.sort(function(a, b){
+            var sortResult = compareSortValues(
+                getPolicySortValue(a, $scope.model.sortBy),
+                getPolicySortValue(b, $scope.model.sortBy)
+            );
+            if (sortResult === 0) {
+                sortResult = compareSortValues(a.vote, b.vote);
+            }
+            return $scope.model.sortDesc ? (sortResult * -1) : sortResult;
+        });
+        $scope.model.policies = policies;
+        updatePagedPolicies();
+    }
+
     $scope.fetchPolicies = function(){
         $scope.model.policyFetchStarted = true;
         var filter = [];
@@ -123,20 +214,11 @@ ndpFramework.controller('PolicyController',
             }
         }
 
-        PolicyService.getByProgram($scope.pager, filter.length > 0 ? filter.join('&') : null, $scope.selectedOrgUnit, $scope.model.selectedProgram, $scope.model.optionSetsById, $scope.model.attributesById, $scope.model.dataElementsById ).then(function( response ){
-            $scope.model.policies = response.policies;
+        PolicyService.getByProgram(filter.length > 0 ? filter.join('&') : null, $scope.selectedOrgUnit, $scope.model.selectedProgram, $scope.model.optionSetsById, $scope.model.attributesById, $scope.model.dataElementsById ).then(function( response ){
+            $scope.model.policiesRaw = response.policies || [];
             $scope.model.policiesFetched = true;
             $scope.model.policyFetchStarted = false;
-
-            response.pager.pageSize = response.pager.pageSize ? response.pager.pageSize : $scope.pager.pageSize;
-            $scope.pager = response.pager;
-            $scope.pager.toolBarDisplay = 5;
-            $scope.pager.length = $scope.model.policies.length;
-
-            Paginator.setPage($scope.pager.page);
-            Paginator.setPageCount($scope.pager.pageCount);
-            Paginator.setPageSize($scope.pager.pageSize);
-            Paginator.setItemCount($scope.pager.total);
+            applySorting();
         });
     };
 
@@ -152,6 +234,7 @@ ndpFramework.controller('PolicyController',
     };
     
     $scope.searchPolicies = function(){
+        $scope.pager.page = 1;
         $scope.fetchPolicies();
     };
 
@@ -159,17 +242,34 @@ ndpFramework.controller('PolicyController',
         if($scope.pager && $scope.pager.page && $scope.pager.pageCount && $scope.pager.page > $scope.pager.pageCount){
             $scope.pager.page = $scope.pager.pageCount;
         }
-        $scope.fetchPolicies();
+        updatePagedPolicies();
     };
 
     $scope.resetPageSize = function(){
         $scope.pager.page = 1;
-        $scope.fetchPolicies();
+        updatePagedPolicies();
     };
 
     $scope.getPage = function(page){
         $scope.pager.page = page;
-        $scope.fetchPolicies();
+        updatePagedPolicies();
+    };
+
+    $scope.setSort = function(field) {
+        if ($scope.model.sortBy === field) {
+            $scope.model.sortDesc = !$scope.model.sortDesc;
+        } else {
+            $scope.model.sortBy = field;
+            $scope.model.sortDesc = !isTextSortField(field);
+        }
+        applySorting();
+    };
+
+    $scope.getSortIcon = function(field) {
+        if ($scope.model.sortBy !== field) {
+            return '';
+        }
+        return $scope.model.sortDesc ? '▼' : '▲';
     };
 
     $scope.resetData = function(){
@@ -177,6 +277,8 @@ ndpFramework.controller('PolicyController',
         $scope.model.dataElementsById = [];
         $scope.model.policiesFetched = false;
         $scope.model.policies = [];
+        $scope.model.policiesRaw = [];
+        $scope.model.policiesPage = [];
     };
 
     $scope.resetView = function(horizontalMenu, e){

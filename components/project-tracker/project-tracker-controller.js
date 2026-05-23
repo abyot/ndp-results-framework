@@ -781,6 +781,59 @@ ndpFramework.controller('ProjectTrackerController',
         $scope.model.expenditureTrendSummary = $filter('orderBy')(expRows, 'year');
     }
 
+    function isTextSortField(field) {
+        return field === 'projectTitle' ||
+            field === 'projectCode' ||
+            field === 'projectArea' ||
+            field === 'latestStatus' ||
+            field === 'ministry' ||
+            String(field || '').indexOf('dynamicAttribute:') === 0 ||
+            String(field || '').indexOf('dynamicReport:') === 0;
+    }
+
+    function getProjectSortValue(project, field) {
+        if (!project) {
+            return '';
+        }
+
+        if (String(field || '').indexOf('dynamicAttribute:') === 0) {
+            var attributeId = field.substring('dynamicAttribute:'.length);
+            return (project.dynamicAttributeValues && project.dynamicAttributeValues[attributeId]) || '';
+        }
+
+        if (String(field || '').indexOf('dynamicReport:') === 0) {
+            var dataElementId = field.substring('dynamicReport:'.length);
+            return (project.dynamicReportValues && project.dynamicReportValues[dataElementId]) || '';
+        }
+
+        return project[field];
+    }
+
+    function compareProjectSortValues(a, b) {
+        var aMissing = a === null || a === undefined || a === '';
+        var bMissing = b === null || b === undefined || b === '';
+        if (aMissing && bMissing) {
+            return 0;
+        }
+        if (aMissing) {
+            return 1;
+        }
+        if (bMissing) {
+            return -1;
+        }
+
+        if (angular.isNumber(a) && angular.isNumber(b)) {
+            return a === b ? 0 : (a < b ? -1 : 1);
+        }
+
+        var aText = String(a).toLowerCase();
+        var bText = String(b).toLowerCase();
+        if (aText === bText) {
+            return 0;
+        }
+        return aText < bText ? -1 : 1;
+    }
+
     function applyFiltersAndSorting() {
         var projects = angular.copy($scope.model.projectsRaw || []);
 
@@ -802,8 +855,18 @@ ndpFramework.controller('ProjectTrackerController',
             });
         }
 
-        var sortExpr = ($scope.model.sortDesc ? '-' : '') + $scope.model.sortBy;
-        projects = $filter('orderBy')(projects, sortExpr);
+        projects.sort(function(a, b){
+            var sortResult = compareProjectSortValues(
+                getProjectSortValue(a, $scope.model.sortBy),
+                getProjectSortValue(b, $scope.model.sortBy)
+            );
+
+            if (sortResult === 0) {
+                sortResult = compareProjectSortValues(a.projectTitle, b.projectTitle);
+            }
+
+            return $scope.model.sortDesc ? (sortResult * -1) : sortResult;
+        });
         $scope.model.projects = projects;
         updatePagedProjects();
         updateSummary(projects);
@@ -1120,7 +1183,7 @@ ndpFramework.controller('ProjectTrackerController',
             $scope.model.sortDesc = !$scope.model.sortDesc;
         } else {
             $scope.model.sortBy = field;
-            $scope.model.sortDesc = (field !== 'projectTitle' && field !== 'projectCode' && field !== 'projectArea' && field !== 'latestStatus');
+            $scope.model.sortDesc = !isTextSortField(field);
         }
         applyFiltersAndSorting();
     };

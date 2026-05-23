@@ -21,6 +21,9 @@ ndpFramework.controller('ProjectController',
         data: null,
         reportReady: false,
         dataExists: false,
+        projects: [],
+        projectsRaw: [],
+        projectsPage: [],
         dataHeaders: [],
         optionSetsById: [],
         programsById: [],
@@ -44,7 +47,9 @@ ndpFramework.controller('ProjectController',
         timePerformance: [],
         costPerformance: [],
         showProjectFilter: false,
-        filterText: {}
+        filterText: {},
+        sortBy: 'vote',
+        sortDesc: false
     };
 
     //Paging
@@ -116,6 +121,8 @@ ndpFramework.controller('ProjectController',
         $scope.model.selectedProgramStage = null;
         $scope.pager = {pageSize: 50, page: 1, toolBarDisplay: 5};
         $scope.model.filterText = {};
+        $scope.model.sortBy = 'vote';
+        $scope.model.sortDesc = false;
         if( $scope.model.selectedMenu && $scope.model.selectedMenu.code && $scope.model.selectedProgram && $scope.model.selectedProgram.id && $scope.model.selectedProgram.programTrackedEntityAttributes ){
 
             if ( $scope.model.selectedProgram.programStages && $scope.model.selectedProgram.programStages.length > 1 ){
@@ -129,8 +136,93 @@ ndpFramework.controller('ProjectController',
     };
 
     $scope.searchProjects = function(){
+        $scope.pager.page = 1;
         $scope.fetchProjects();
     };
+
+    function isTextSortField(field) {
+        return field === 'vote' || String(field || '').indexOf('attr:') === 0;
+    }
+
+    function getProjectSortValue(project, field) {
+        if (!project) {
+            return '';
+        }
+        if (String(field || '').indexOf('attr:') === 0) {
+            return project[field.substring('attr:'.length)] || '';
+        }
+        return project[field];
+    }
+
+    function compareSortValues(a, b) {
+        var aMissing = a === null || a === undefined || a === '';
+        var bMissing = b === null || b === undefined || b === '';
+        if (aMissing && bMissing) {
+            return 0;
+        }
+        if (aMissing) {
+            return 1;
+        }
+        if (bMissing) {
+            return -1;
+        }
+        if (angular.isNumber(a) && angular.isNumber(b)) {
+            return a === b ? 0 : (a < b ? -1 : 1);
+        }
+        var aText = String(a).toLowerCase();
+        var bText = String(b).toLowerCase();
+        if (aText === bText) {
+            return 0;
+        }
+        return aText < bText ? -1 : 1;
+    }
+
+    function updatePagedProjects() {
+        var projects = $scope.model.projects || [];
+        var pageSize = $scope.pager.pageSize > 0 ? parseInt($scope.pager.pageSize, 10) : 50;
+        if (isNaN(pageSize) || pageSize < 1) {
+            pageSize = 50;
+        }
+        var pageCount = Math.max(1, Math.ceil(projects.length / pageSize));
+        var page = $scope.pager.page > 0 ? parseInt($scope.pager.page, 10) : 1;
+        if (isNaN(page) || page < 1) {
+            page = 1;
+        }
+        if (page > pageCount) {
+            page = pageCount;
+        }
+        var start = (page - 1) * pageSize;
+        var end = start + pageSize;
+
+        $scope.pager.page = page;
+        $scope.pager.pageSize = pageSize;
+        $scope.pager.total = projects.length;
+        $scope.pager.length = projects.length;
+        $scope.pager.pageCount = pageCount;
+        $scope.pager.toolBarDisplay = 5;
+        $scope.model.projectsPage = projects.slice(start, end);
+
+        Paginator.setPage($scope.pager.page);
+        Paginator.setPageCount($scope.pager.pageCount);
+        Paginator.setPageSize($scope.pager.pageSize);
+        Paginator.setItemCount($scope.pager.total);
+    }
+
+    function applySorting() {
+        var projects = angular.copy($scope.model.projectsRaw || []);
+        projects.sort(function(a, b){
+            var sortResult = compareSortValues(
+                getProjectSortValue(a, $scope.model.sortBy),
+                getProjectSortValue(b, $scope.model.sortBy)
+            );
+            if (sortResult === 0) {
+                sortResult = compareSortValues(a.vote, b.vote);
+            }
+            return $scope.model.sortDesc ? (sortResult * -1) : sortResult;
+        });
+        $scope.model.projects = projects;
+        updatePagedProjects();
+    }
 
     $scope.fetchProjects = function(){
         $scope.model.projectFetchStarted = true;
@@ -142,20 +234,11 @@ ndpFramework.controller('ProjectController',
             }
         }
 
-        ProjectService.getByProgram($scope.pager, filter.length > 0 ? filter.join('&') : null, $scope.selectedOrgUnit, $scope.model.selectedProgram, $scope.model.optionSetsById, $scope.model.attributesById, $scope.model.dataElementsById ).then(function( response ){
-            $scope.model.projects = response.projects;
+        ProjectService.getByProgram(filter.length > 0 ? filter.join('&') : null, $scope.selectedOrgUnit, $scope.model.selectedProgram, $scope.model.optionSetsById, $scope.model.attributesById, $scope.model.dataElementsById ).then(function( response ){
+            $scope.model.projectsRaw = response.projects || [];
             $scope.model.projectsFetched = true;
             $scope.model.projectFetchStarted = false;
-
-            response.pager.pageSize = response.pager.pageSize ? response.pager.pageSize : $scope.pager.pageSize;
-            $scope.pager = response.pager;
-            $scope.pager.toolBarDisplay = 5;
-            $scope.pager.length = $scope.model.projects.length;
-
-            Paginator.setPage($scope.pager.page);
-            Paginator.setPageCount($scope.pager.pageCount);
-            Paginator.setPageSize($scope.pager.pageSize);
-            Paginator.setItemCount($scope.pager.total);
+            applySorting();
         });
     };
 
@@ -185,22 +268,41 @@ ndpFramework.controller('ProjectController',
         if($scope.pager && $scope.pager.page && $scope.pager.pageCount && $scope.pager.page > $scope.pager.pageCount){
             $scope.pager.page = $scope.pager.pageCount;
         }
-        $scope.fetchProjects();
+        updatePagedProjects();
     };
 
     $scope.resetPageSize = function(){
         $scope.pager.page = 1;
-        $scope.fetchProjects();
+        updatePagedProjects();
     };
 
     $scope.getPage = function(page){
         $scope.pager.page = page;
-        $scope.fetchProjects();
+        updatePagedProjects();
+    };
+
+    $scope.setSort = function(field) {
+        if ($scope.model.sortBy === field) {
+            $scope.model.sortDesc = !$scope.model.sortDesc;
+        } else {
+            $scope.model.sortBy = field;
+            $scope.model.sortDesc = !isTextSortField(field);
+        }
+        applySorting();
+    };
+
+    $scope.getSortIcon = function(field) {
+        if ($scope.model.sortBy !== field) {
+            return '';
+        }
+        return $scope.model.sortDesc ? '▼' : '▲';
     };
 
     $scope.resetData = function(){
         $scope.model.projectsFetched = false;
         $scope.model.projects = [];
+        $scope.model.projectsRaw = [];
+        $scope.model.projectsPage = [];
     };
 
     $scope.resetView = function(horizontalMenu, e){

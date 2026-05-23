@@ -85,7 +85,7 @@
                             <tr>
                                 <td colspan="100%">
                                     <button type="button" class="btn btn-primary pull-right"
-                                            ng-click="searchpolicies()">
+                                            ng-click="searchPolicies()">
                                         {{'search'| translate}}
                                     </button>
                                 </td>
@@ -97,16 +97,17 @@
                     <table>
                         <thead>
                         <tr>
-                            <th class="sticky">
-                                {{'vote' | translate}}
+                            <th class="sticky cursor-pointer" ng-click="setSort('vote')">
+                                {{'vote' | translate}} {{getSortIcon('vote')}}
                             </th>
-                            <th class="sticky"
+                            <th class="sticky cursor-pointer"
+                                ng-click="setSort('attr:' + att.trackedEntityAttribute.id)"
                                 ng-repeat="att in model.selectedProgram.programTrackedEntityAttributes | orderBy: 'sortOrder' | filter: {displayInList: true}">
-                                {{att.trackedEntityAttribute.displayName}}
+                                {{att.trackedEntityAttribute.displayName}} {{getSortIcon('attr:' + att.trackedEntityAttribute.id)}}
                             </th>
                         </tr>
                         </thead>
-                        <tbody ng-repeat="policy in model.policies">
+                        <tbody ng-repeat="policy in model.policiesPage">
                         <tr ng-click="getPolicyDetails(policy)">
                             <td class="vertical-center cursor-pointer">
                                 <span ng-class="{'selected-row': policy.trackedEntityInstance === model.selectedPolicy.trackedEntityInstance}">{{policy.vote}}</span>
@@ -154,5 +155,4 @@
     </div>
 
 </div>
-
 
