@@ -90,7 +90,30 @@ ndpFramework.controller('HomeController',
 
     $scope.$watch('model.selectedNDP', function(){
         $scope.model.selectedMenu = null;
+        $scope.isSubMenuOpen = {
+            NPD: false,
+            SUB: false
+        };
     });
+
+    function syncSubMenusForSelection(selectedMenu) {
+        $scope.isSubMenuOpen = {
+            NPD: false,
+            SUB: false
+        };
+
+        if (!selectedMenu || !selectedMenu.id) {
+            return;
+        }
+
+        if (selectedMenu.id === 'OBJ') {
+            $scope.isSubMenuOpen.NPD = true;
+        }
+
+        if (selectedMenu.id === 'SUB-OUTPUT' || selectedMenu.id === 'ACT') {
+            $scope.isSubMenuOpen.SUB = true;
+        }
+    }
 
     $scope.setSelectedMenu = function( menu ){
 
@@ -112,6 +135,7 @@ ndpFramework.controller('HomeController',
                     $scope.model.selectedMenu.ndp = $scope.model.selectedNDP.code;
                 }
             }
+            syncSubMenusForSelection($scope.model.selectedMenu);
             SelectedMenuService.setSelectedMenu($scope.model.selectedMenu);
             $scope.$broadcast('MENU', $scope.model.selectedMenu);
         }
@@ -162,7 +186,8 @@ ndpFramework.controller('HomeController',
     };
 
     $scope.isSubMenuOpen = {
-        NPD: false
+        NPD: false,
+        SUB: false
     };
     $scope.toggleSubMenu = function(menuName) {
       $scope.isSubMenuOpen[menuName] = !$scope.isSubMenuOpen[menuName];

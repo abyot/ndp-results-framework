@@ -19,7 +19,7 @@
         <ul class="dropdown-menu">
             <li class="dropdown-item"><h6 class="dropdown-header">{{'download_as'| translate}}</h6></li>
             <div class="divider"></div>
-            <li class="dropdown-item"><a href ng-click="exportData('result')">{{'csv'| translate}}</a></li>
+            <li class="dropdown-item"><a href ng-click="exportData('performance')">{{'csv'| translate}}</a></li>
             <li class="dropdown-item"><a href onclick="javascript:window.print()">{{'pdf'| translate}}</a></li>
         </ul>
     </span>
@@ -32,9 +32,9 @@
 
     <button type="button" class="btn btn-info" style="background-color: #8d99ae"
             ng-click="getExplanations()"
-            title="Comments">
+            ng-attr-title="{{ model.showExplanation ? 'Hide Comment Links' : 'Show Comment Links' }}">
      <i class="fa fa-comment cursor-pointer" style="margin-right:10px"></i>
-     Comments
+     {{ model.showExplanation ? 'Hide Comment Links' : 'Show Comment Links' }}
 </button>
 
     <!--    <span class="dropdown" ng-if="(model.tableRows | filter: {hasData: false}).length > 0">-->

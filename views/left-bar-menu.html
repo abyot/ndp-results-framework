@@ -41,6 +41,19 @@ background-color: #4e9ccf;
 cursor:pointer;
 }
 
+.menu-item a.menu-link-active,
+.submenu-item a.menu-link-active {
+background-color: #4e9ccf;
+color: white;
+font-weight: 600;
+box-shadow: none;
+}
+
+.menu-item a.menu-link-active .accordion-icon,
+.submenu-item a.menu-link-active .accordion-icon {
+color: #aaa;
+}
+
 .accordion-icon {
 margin-left: auto;
 font-size: 14px;
@@ -112,7 +125,8 @@ font-size: 18px;
     <div class="sidebar">
         <div class="menu-container">
             <div class="menu-item">
-                <a ng-click="toggleSubMenu('NPD')">
+                <a ng-click="toggleSubMenu('NPD')"
+                   ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'OBJ'}">
                     <span class="icon">📈</span>
                     NDP Tracker
                     <span class="accordion-icon">{{ isSubMenuOpen['NPD'] ? '▼' : '▶' }}</span>
@@ -129,14 +143,16 @@ font-size: 18px;
                         view: 'components/objective/objective-status.html',
                         color: 'ndp-menu',
                         ndp: 'NDP'
-                          })">
+                          })"
+                           ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'OBJ'}">
                             NDP Outcomes
                         </a>
                     </div>
                 </div>
             </div>
             <div class="menu-item">
-                <a ng-click="toggleSubMenu('SUB')">
+                <a ng-click="toggleSubMenu('SUB')"
+                   ng-class="{'menu-link-active': model.selectedMenu && (model.selectedMenu.id === 'SUB-OUTPUT' || model.selectedMenu.id === 'ACT')}">
                     <span class="icon">📋</span>
                     Budget Program Tracker
                     <span class="accordion-icon">{{ isSubMenuOpen['SUB'] ? '▼' : '▶' }}</span>
@@ -169,7 +185,8 @@ font-size: 18px;
                         children: [],
                         view: 'components/output/output-status.html',
                         color: 'ndp-menu'
-                          })">
+                          })"
+                           ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'SUB-OUTPUT'}">
                             Outputs
                         </a>
                     </div>
@@ -185,7 +202,8 @@ font-size: 18px;
                         view: 'components/action/action-output-status.html',
                         color: 'ndp-menu',
                         ndp: 'NDP'
-                          })">
+                          })"
+                           ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'ACT'}">
                             Actions
                         </a>
                     </div>
@@ -200,7 +218,8 @@ font-size: 18px;
                   displayName: 'project_performance',
                   order: 3,
                   view: 'components/project/performance.html'
-                   })">
+                   })"
+                   ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'PRJP'}">
                     <span class="icon">🎯</span>
                     Project Performance
                 </a>
@@ -213,7 +232,8 @@ font-size: 18px;
                   displayName: 'project_tracker',
                   order: 4,
                   view: 'components/project-tracker/performance.html'
-                   })">
+                   })"
+                   ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'PRJT'}">
                     <span class="icon">📊</span>
                     {{'project_tracker' | translate}}
                 </a>
@@ -226,7 +246,8 @@ font-size: 18px;
                       displayName: 'policy_action',
                       order: 5,
                       view: 'components/policy/performance.html'
-                    })">
+                    })"
+                    ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'POAC'}">
                     <span class="icon">📜</span>
                     Policy Action
                 </a>
@@ -261,7 +282,8 @@ font-size: 18px;
                       displayName: 'indicator_dictionary',
                       view: 'components/dictionary/dictionary-status.html',
                       color: 'dg-menu'
-                    })">
+                    })"
+                    ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'DG-DICT'}">
                     <span class="icon">📚</span>
                     Indicator dictionary
                 </a>
@@ -276,7 +298,8 @@ font-size: 18px;
                           view: 'components/faq/faq.html',
                           hasNoNDP: true,
                           color: 'dg-menu'
-                        })">
+                        })"
+                        ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'DG-FAQ'}">
                     <span class="icon">❓</span>
                     FAQ
                 </a>
@@ -291,7 +314,8 @@ font-size: 18px;
                           view: 'components/library/library-status.html',
                           hasNoNDP: true,
                           color: 'lib-menu'
-                        })">
+                        })"
+                        ng-class="{'menu-link-active': model.selectedMenu && model.selectedMenu.id === 'LIB'}">
                     <span class="icon">📁</span>
                     Library
                 </a>
