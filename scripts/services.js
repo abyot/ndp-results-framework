@@ -60,13 +60,397 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
     })
 
     .service('DataStoreService', function($http, DHIS2URL){
+        var APP_CONFIG_NAMESPACE = 'ndp-rf';
+        var APP_CONFIG_KEY = 'appConfig';
+
+        function buildDataStoreUrl(namespace, key) {
+            var url = DHIS2URL + '/api/dataStore/' + namespace;
+            if (key) {
+                url += '/' + encodeURIComponent(key);
+            }
+            return url;
+        }
+
+        function resolveAttributeOptionComboId(categoryCombo, optionOrComboId) {
+            if (!categoryCombo || !categoryCombo.categoryOptionCombos || !optionOrComboId) {
+                return optionOrComboId;
+            }
+
+            for (var i = 0; i < categoryCombo.categoryOptionCombos.length; i++) {
+                if (categoryCombo.categoryOptionCombos[i].id === optionOrComboId) {
+                    return optionOrComboId;
+                }
+            }
+
+            for (var j = 0; j < categoryCombo.categoryOptionCombos.length; j++) {
+                var categoryOptions = categoryCombo.categoryOptionCombos[j].categoryOptions || [];
+                for (var k = 0; k < categoryOptions.length; k++) {
+                    if (categoryOptions[k].id === optionOrComboId) {
+                        return categoryCombo.categoryOptionCombos[j].id;
+                    }
+                }
+            }
+
+            return optionOrComboId;
+        }
+
         return {
             getAppConfig: function () {
-                var url = DHIS2URL + '/api/dataStore/ndp-rf/appConfig';
+                var url = buildDataStoreUrl(APP_CONFIG_NAMESPACE, APP_CONFIG_KEY);
                 var promise = $http.get( url ).then(function(res){
                     return res.data;
                 });
                 return promise;
+            },
+            resolveAttributeOptionComboId: function (categoryCombo, optionOrComboId) {
+                return resolveAttributeOptionComboId(categoryCombo, optionOrComboId);
+            }
+        };
+    })
+
+    .service('ReportCommentService', function($q, DataStoreService, DataValueService){
+        function parseComment(rawComment) {
+            if (!rawComment) {
+                return null;
+            }
+
+            if (angular.isObject(rawComment)) {
+                return angular.copy(rawComment);
+            }
+
+            try {
+                return JSON.parse(rawComment);
+            } catch (e) {
+                try {
+                    return JSON.parse(decodeURI(rawComment));
+                } catch (ignored) {
+                    return null;
+                }
+            }
+        }
+
+        function getPeriodYear(periodId) {
+            if (!periodId || periodId.length < 4) {
+                return null;
+            }
+
+            return periodId.substring(0, 4);
+        }
+
+        function toQuarterPeriod(periodId) {
+            if (!periodId) {
+                return null;
+            }
+
+            if (/^\d{4}Q[1-4]$/.test(periodId)) {
+                return periodId;
+            }
+
+            if (/^\d{6}$/.test(periodId)) {
+                var month = parseInt(periodId.substring(4, 6), 10);
+                if (month >= 1 && month <= 3) {
+                    return periodId.substring(0, 4) + 'Q1';
+                }
+                if (month >= 4 && month <= 6) {
+                    return periodId.substring(0, 4) + 'Q2';
+                }
+                if (month >= 7 && month <= 9) {
+                    return periodId.substring(0, 4) + 'Q3';
+                }
+                if (month >= 10 && month <= 12) {
+                    return periodId.substring(0, 4) + 'Q4';
+                }
+            }
+
+            return null;
+        }
+
+        function getPeriodMatchScore(requestedPeriodId, storedPeriodId) {
+            if (!requestedPeriodId || !storedPeriodId) {
+                return -1;
+            }
+
+            if (requestedPeriodId === storedPeriodId) {
+                return 100;
+            }
+
+            if (
+                storedPeriodId.indexOf(requestedPeriodId) === 0 ||
+                requestedPeriodId.indexOf(storedPeriodId) === 0
+            ) {
+                return 80;
+            }
+
+            var requestedQuarter = toQuarterPeriod(requestedPeriodId);
+            var storedQuarter = toQuarterPeriod(storedPeriodId);
+            if (requestedQuarter && storedQuarter && requestedQuarter === storedQuarter) {
+                return 70;
+            }
+
+            var requestedYear = getPeriodYear(requestedPeriodId);
+            var storedYear = getPeriodYear(storedPeriodId);
+            if (requestedYear && storedYear && requestedYear === storedYear) {
+                return 50;
+            }
+
+            return -1;
+        }
+
+        function hasRenderableComment(comment) {
+            return !!(comment && (
+                comment.explanation ||
+                (comment.attachment && comment.attachment.length)
+            ));
+        }
+
+        function buildDataValueSetUrl(orgUnitId, selectedPeriods, dataElementGroups) {
+            if (!orgUnitId || !selectedPeriods || !selectedPeriods.length) {
+                return null;
+            }
+
+            var url = 'orgUnit=' + orgUnitId;
+            url += '&children=true';
+            url += '&startDate=' + selectedPeriods[0].startDate;
+            url += '&endDate=' + selectedPeriods[selectedPeriods.length - 1].endDate;
+
+            angular.forEach(dataElementGroups || [], function (deg) {
+                if (deg && deg.id) {
+                    url += '&dataElementGroup=' + deg.id;
+                }
+            });
+
+            return url;
+        }
+
+        function collectRenderableComments(response) {
+            var comments = [];
+
+            angular.forEach((response && response.dataValues) || [], function (dv) {
+                var parsedComment = parseComment(dv.comment);
+                if (!hasRenderableComment(parsedComment)) {
+                    return;
+                }
+
+                comments.push({
+                    dataElementId: dv.dataElement,
+                    periodId: dv.period,
+                    categoryOptionComboId: dv.categoryOptionCombo,
+                    attributeOptionComboId: dv.attributeOptionCombo,
+                    value: dv.value,
+                    comment: parsedComment
+                });
+            });
+
+            return comments;
+        }
+
+        function fetchRenderableComments(orgUnitId, selectedPeriods, dataElementGroups) {
+            var url = buildDataValueSetUrl(orgUnitId, selectedPeriods, dataElementGroups);
+            if (!url) {
+                return $q.when([]);
+            }
+
+            return DataValueService.getDataValueSet(url).then(function (response) {
+                return collectRenderableComments(response);
+            });
+        }
+
+        return {
+            getCommentsForSelection: function (orgUnitId, selectedPeriods, dataElementGroups) {
+                return fetchRenderableComments(orgUnitId, selectedPeriods, dataElementGroups).then(function (comments) {
+                    if (comments.length || !dataElementGroups || !dataElementGroups.length) {
+                        return comments;
+                    }
+
+                    return fetchRenderableComments(orgUnitId, selectedPeriods, null);
+                });
+            },
+            findMatchingComment: function (commentDataValues, dataElementId, periodId, categoryOptionComboId, attributeOptionComboId) {
+                if (!commentDataValues || !commentDataValues.length) {
+                    return null;
+                }
+
+                var bestMatch = null;
+                var bestScore = -1;
+
+                for (var i = 0; i < commentDataValues.length; i++) {
+                    var dataValue = commentDataValues[i];
+                    if (!dataValue || dataValue.dataElementId !== dataElementId) {
+                        continue;
+                    }
+
+                    var periodScore = getPeriodMatchScore(periodId, dataValue.periodId);
+                    if (periodScore < 0) {
+                        continue;
+                    }
+
+                    var score = periodScore;
+
+                    if (categoryOptionComboId) {
+                        if (dataValue.categoryOptionComboId !== categoryOptionComboId) {
+                            continue;
+                        }
+                        score += 20;
+                    }
+
+                    if (attributeOptionComboId) {
+                        if (dataValue.attributeOptionComboId === attributeOptionComboId) {
+                            score += 10;
+                        } else {
+                            score -= 3;
+                        }
+                    }
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatch = dataValue;
+                    }
+                }
+
+                return bestMatch;
+            },
+            applyCommentsToTableRows: function (tableRows, dataHeaders, actualDimensionId, categoryCombo, commentDataValues, context) {
+                var rows = tableRows || [];
+                var headers = dataHeaders || [];
+                var hasAnyMarkers = false;
+                var matchedCommentKeys = {};
+                var actualHeaders = headers.filter(function (dh) {
+                    return dh.dimensionId === actualDimensionId;
+                });
+
+                function getCommentKey(commentDataValue) {
+                    return [
+                        commentDataValue.dataElementId,
+                        commentDataValue.periodId,
+                        commentDataValue.categoryOptionComboId,
+                        commentDataValue.attributeOptionComboId
+                    ].join('.');
+                }
+
+                function getBestHeaderForComment(commentDataValue) {
+                    var bestHeader = null;
+                    var bestScore = -1;
+
+                    angular.forEach(actualHeaders, function (dh) {
+                        var score = getPeriodMatchScore(dh.periodId, commentDataValue.periodId);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestHeader = dh;
+                        }
+                    });
+
+                    return bestScore >= 0 ? bestHeader : null;
+                }
+
+                function buildCommentOnlyRow(commentDataValue) {
+                    if (!context || !context.dataElementsById) {
+                        return null;
+                    }
+
+                    var dataElement = context.dataElementsById[commentDataValue.dataElementId];
+                    if (!dataElement) {
+                        return null;
+                    }
+
+                    var groupName = '';
+                    var groupSetName = '';
+                    var selectedGroupSets = context.selectedDataElementGroupSets || [];
+                    var degIds = ((dataElement.dataElementGroups || []).map(function (deg) {
+                        return deg.id;
+                    }));
+
+                    angular.forEach(selectedGroupSets, function (degs) {
+                        if (groupName) {
+                            return;
+                        }
+
+                        angular.forEach(degs.dataElementGroups || [], function (degRef) {
+                            if (groupName || degIds.indexOf(degRef.id) === -1) {
+                                return;
+                            }
+
+                            var deg = context.dataElementGroupsById && context.dataElementGroupsById[degRef.id];
+                            groupName = (deg && deg.displayName) || degRef.displayName || '';
+                            groupSetName = degs.displayName || '';
+                        });
+                    });
+
+                    var row = {
+                        dataElementCode: dataElement.code,
+                        dataElementId: dataElement.id,
+                        dataElement: dataElement.displayName,
+                        categoryOptionComboId: commentDataValue.categoryOptionComboId,
+                        categoryOptionComboName: '',
+                        dataElementGroup: groupName,
+                        dataElementGroupSet: groupSetName,
+                        values: {},
+                        hasData: true,
+                        styles: {},
+                        commentCells: {}
+                    };
+
+                    angular.forEach(headers, function (dh) {
+                        row.values[dh.dimensionId + '.' + dh.periodId] = '';
+                        row.styles[dh.dimensionId + '.' + dh.periodId] = '';
+                    });
+
+                    return row;
+                }
+
+                angular.forEach(rows, function (row) {
+                    row.commentCells = {};
+
+                    angular.forEach(headers, function (dh) {
+                        if (dh.dimensionId !== actualDimensionId) {
+                            return;
+                        }
+
+                        var attributeOptionComboId = DataStoreService.resolveAttributeOptionComboId(categoryCombo, dh.dimensionId);
+                        var commentDataValue = this.findMatchingComment(
+                            commentDataValues,
+                            row.dataElementId,
+                            dh.periodId,
+                            row.categoryOptionComboId,
+                            attributeOptionComboId
+                        );
+
+                        if (commentDataValue) {
+                            row.commentCells[dh.dimensionId + '.' + dh.periodId] = commentDataValue;
+                            matchedCommentKeys[getCommentKey(commentDataValue)] = true;
+                        }
+                    }, this);
+
+                    row.hasCommentMarker = Object.keys(row.commentCells).length > 0;
+                    if (row.hasCommentMarker) {
+                        row.hasData = true;
+                        hasAnyMarkers = true;
+                    }
+                }, this);
+
+                angular.forEach(commentDataValues || [], function (commentDataValue) {
+                    var commentKey = getCommentKey(commentDataValue);
+                    if (matchedCommentKeys[commentKey]) {
+                        return;
+                    }
+
+                    var header = getBestHeaderForComment(commentDataValue);
+                    if (!header) {
+                        return;
+                    }
+
+                    var row = buildCommentOnlyRow(commentDataValue);
+                    if (!row) {
+                        return;
+                    }
+
+                    row.commentCells[header.dimensionId + '.' + header.periodId] = commentDataValue;
+                    row.hasCommentMarker = true;
+                    rows.push(row);
+                    matchedCommentKeys[commentKey] = true;
+                    hasAnyMarkers = true;
+                });
+
+                return hasAnyMarkers;
             }
         };
     })
@@ -922,7 +1306,100 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
         };
     })
 
-    .service('Analytics', function ($q, $http, $filter, $translate, DHIS2URL, orderByFilter, CommonUtils, NotificationService) {
+    .service('Analytics', function ($q, $http, $filter, $translate, DHIS2URL, orderByFilter, CommonUtils, NotificationService, ReportCommentService) {
+        function getPeriodMatchScore(requestedPeriodId, storedPeriodId) {
+            if (!requestedPeriodId || !storedPeriodId) {
+                return -1;
+            }
+
+            if (requestedPeriodId === storedPeriodId) {
+                return 100;
+            }
+
+            if (
+                storedPeriodId.indexOf(requestedPeriodId) === 0 ||
+                requestedPeriodId.indexOf(storedPeriodId) === 0
+            ) {
+                return 80;
+            }
+
+            if (/^\d{4}$/.test(requestedPeriodId) && /^\d{6}$/.test(storedPeriodId)) {
+                return requestedPeriodId === storedPeriodId.substring(0, 4) ? 50 : -1;
+            }
+
+            if (/^\d{4}$/.test(storedPeriodId) && /^\d{6}$/.test(requestedPeriodId)) {
+                return storedPeriodId === requestedPeriodId.substring(0, 4) ? 50 : -1;
+            }
+
+            return -1;
+        }
+
+        function getBestMatchingPeriodId(commentPeriodId, selectedPeriods) {
+            var bestPeriodId = commentPeriodId;
+            var bestScore = -1;
+
+            angular.forEach(selectedPeriods || [], function (period) {
+                var score = getPeriodMatchScore(period.id, commentPeriodId);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestPeriodId = period.id;
+                }
+            });
+
+            return bestScore >= 0 ? bestPeriodId : commentPeriodId;
+        }
+
+        function mergeSyntheticCommentRows(analytics, commentDataValues, commentConfig) {
+            var result = analytics || {};
+            result.data = result.data || [];
+            result.metaData = result.metaData || { items: {}, dimensions: {} };
+
+            var keyIndex = {};
+            angular.forEach(result.data, function (row) {
+                if (!row) {
+                    return;
+                }
+
+                keyIndex[
+                    [
+                        row.dx,
+                        row.pe,
+                        row.co,
+                        row[commentConfig.dimensionCategoryId]
+                    ].join('|')
+                ] = true;
+            });
+
+            angular.forEach(commentDataValues || [], function (commentDataValue) {
+                var periodId = getBestMatchingPeriodId(commentDataValue.periodId, commentConfig.selectedPeriods);
+                var rowKey = [
+                    commentDataValue.dataElementId,
+                    periodId,
+                    commentDataValue.categoryOptionComboId,
+                    commentDataValue.attributeOptionComboId
+                ].join('|');
+
+                if (keyIndex[rowKey]) {
+                    return;
+                }
+
+                var syntheticRow = {
+                    dx: commentDataValue.dataElementId,
+                    pe: periodId,
+                    co: commentDataValue.categoryOptionComboId,
+                    value: null,
+                    comment: commentDataValue.comment,
+                    syntheticCommentRow: true
+                };
+                syntheticRow[commentConfig.dimensionCategoryId] = commentDataValue.attributeOptionComboId;
+
+                result.data.push(syntheticRow);
+                keyIndex[rowKey] = true;
+            });
+
+            return result;
+        }
+
         return {
             getFinancialData: function (url, metadata) {
                 if (url) {
@@ -1011,16 +1488,37 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                 });
                 return def.promise;
             },
-            getData: function (url) {
+            getData: function (url, options) {
                 if (url) {
-                    url = DHIS2URL + '/api/analytics?' + encodeURI(url);
-                    var promise = $http.get(url).then(function (response) {
-                        return CommonUtils.getFormattedAnalyticsResponse( response );
+                    var analyticsUrl = DHIS2URL + '/api/analytics?' + encodeURI(url);
+                    var analyticsPromise = $http.get(analyticsUrl).then(function (response) {
+                        return CommonUtils.getFormattedAnalyticsResponse(response);
                     }, function (response) {
                         CommonUtils.errorNotifier(response);
                         return response.data;
                     });
-                    return promise;
+
+                    var commentConfig = options && options.commentConfig;
+                    if (!commentConfig) {
+                        return analyticsPromise;
+                    }
+
+                    return $q.all({
+                        analytics: analyticsPromise,
+                        commentDataValues: ReportCommentService.getCommentsForSelection(
+                            commentConfig.orgUnitId,
+                            commentConfig.selectedPeriods,
+                            commentConfig.dataElementGroups
+                        )
+                    }).then(function (result) {
+                        result.analytics = result.analytics || {};
+                        result.analytics.commentDataValues = result.commentDataValues || [];
+                        return mergeSyntheticCommentRows(
+                            result.analytics,
+                            result.commentDataValues,
+                            commentConfig
+                        );
+                    });
                 } else {
                     var def = $q.defer();
                     def.resolve();
@@ -1036,7 +1534,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                     'data', 'metaData', 'cost', 'reportPeriods',
                     'bta', 'selectedDataElementGroupSets', 'dataElementGroups',
                     'dataElementsById', 'dataElementGroupsById',
-                    'periodConfig', 'trafficLightConfig'
+                    'periodSettings', 'trafficLightConfig'
                 ];
 
                 if (!dataParams) {
@@ -1061,9 +1559,11 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
 
                 var totalRows = 0, dataElementRows = 0;
                 var hasPhysicalPerformanceData = false;
+                var hasCommentPerformanceData = false;
                 var dataElementRowIndex = {};
                 var tableRows = [];
                 var povTableRows = [];
+                var commentDataValues = dataParams.commentDataValues || [];
 
                 // -----------------------------------------------------------------------------
                 // FAST LOOKUP MAPS (O(1)) : dx|pe|co|dimId -> value
@@ -1157,6 +1657,20 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
 
                     var colors = (tlc && tlc.colors) ? tlc.colors : {};
 
+                    function resolveColorEntry(id, legacyKey, fallbackColor) {
+                        var entry = colors[id] || colors[legacyKey] || null;
+
+                        if (angular.isString(entry)) {
+                            return entry;
+                        }
+
+                        if (entry && entry.color) {
+                            return entry.color;
+                        }
+
+                        return fallbackColor;
+                    }
+
                     // Expect ids in your stored config
                     var g = find('achieved');
                     var y = find('moderatelyAchieved');
@@ -1164,9 +1678,9 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
 
                     if (!g || !y || !r) return out;
 
-                    out.greenStart = g.min; out.greenEnd = g.max; out.greenColor = colors.green || '#2ECC71';
-                    out.yellowStart = y.min; out.yellowEnd = y.max; out.yellowColor = colors.yellow || '#F1C40F';
-                    out.redStart = r.min; out.redEnd = r.max; out.redColor = colors.red || '#CD615A';
+                    out.greenStart = g.min; out.greenEnd = g.max; out.greenColor = resolveColorEntry('achieved', 'green', '#2ECC71');
+                    out.yellowStart = y.min; out.yellowEnd = y.max; out.yellowColor = resolveColorEntry('moderatelyAchieved', 'yellow', '#F1C40F');
+                    out.redStart = r.min; out.redEnd = r.max; out.redColor = resolveColorEntry('notAchieved', 'red', '#CD615A');
                     out.isValid = true;
 
                     return out;
@@ -1175,16 +1689,38 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                 var defaultLegendRanges = normalizeLegendSet(dataParams.defaultLegendSet);
                 var dataStoreRanges = normalizeDataStoreRanges(tlc);
 
-                function fixedRangesToLegendLike(fr) {
+                function fixedRangesToLegendLike(fr, isDescending) {
                     // Use DataStore colors first, then default legend colors
                     var greenC = (dataStoreRanges.isValid && dataStoreRanges.greenColor) ? dataStoreRanges.greenColor : (defaultLegendRanges.greenColor || '#2ECC71');
                     var yellowC = (dataStoreRanges.isValid && dataStoreRanges.yellowColor) ? dataStoreRanges.yellowColor : (defaultLegendRanges.yellowColor || '#F1C40F');
                     var redC = (dataStoreRanges.isValid && dataStoreRanges.redColor) ? dataStoreRanges.redColor : (defaultLegendRanges.redColor || '#CD615A');
+                    var noDataC = '#aaa';
+                    if (tlc && tlc.colors) {
+                        if (angular.isString(tlc.colors.noData)) {
+                            noDataC = tlc.colors.noData;
+                        } else if (tlc.colors.noData && tlc.colors.noData.color) {
+                            noDataC = tlc.colors.noData.color;
+                        }
+                    }
+
+                    // Legacy descending fixed ranges use a different shape and assume direct actual/target %.
+                    // Normalize them to the app's standard achieved/moderate/not-achieved thresholds when we
+                    // invert the percentage calculation for descending indicators.
+                    if (isDescending && (!fr || fr.greenStart === undefined)) {
+                        return {
+                            greenStart: 100, greenEnd: Number.POSITIVE_INFINITY, greenColor: greenC,
+                            yellowStart: 75, yellowEnd: 99.9999, yellowColor: yellowC,
+                            redStart: 0, redEnd: 74.9999, redColor: redC,
+                            noDataColor: noDataC,
+                            isValid: true
+                        };
+                    }
 
                     return {
                         greenStart: fr.greenStart, greenEnd: fr.greenEnd, greenColor: greenC,
                         yellowStart: fr.yellowStart, yellowEnd: fr.yellowEnd, yellowColor: yellowC,
                         redStart: fr.redStart, redEnd: fr.redEnd, redColor: redC,
+                        noDataColor: noDataC,
                         isValid: true
                     };
                 }
@@ -1214,7 +1750,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                     // 3) Fixed fallback
                     if (!picked || !picked.isValid) {
                         var fr = CommonUtils.getFixedRanges(de && de.descendingIndicatorType);
-                        picked = fixedRangesToLegendLike(fr);
+                        picked = fixedRangesToLegendLike(fr, de && de.descendingIndicatorType);
                     }
 
                     rangeCache[deId] = picked;
@@ -1227,18 +1763,40 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                     return v;
                 }
 
-                function percentOfTarget(actual, target) {
+                function isBlankValue(value) {
+                    return value === '' || value === null || value === undefined;
+                }
+
+                function percentOfTarget(actual, target, deId) {
+                    if (isBlankValue(actual) || isBlankValue(target)) return null;
                     if (!dhis2.validation.isNumber(actual) || !dhis2.validation.isNumber(target)) return null;
-                    if (Number(target) === 0) return null;
-                    var pct = Number(CommonUtils.getPercent(actual, target, true, true));
+
+                    var de = dataParams.dataElementsById[deId];
+                    var actualValue = Number(actual);
+                    var targetValue = Number(target);
+                    var numerator = actualValue;
+                    var denominator = targetValue;
+
+                    // For descending indicators, lower actual values are better, so invert the ratio.
+                    if (de && de.descendingIndicatorType) {
+                        if (actualValue === 0) {
+                            return targetValue === 0 ? 100 : Number.POSITIVE_INFINITY;
+                        }
+
+                        numerator = targetValue;
+                        denominator = actualValue;
+                    }
+
+                    if (denominator === 0) return null;
+
+                    var pct = Number(CommonUtils.getPercent(numerator, denominator, true, true));
                     return dhis2.validation.isNumber(pct) ? pct : null;
                 }
 
                 function classify(actual, target, deId) {
                     // policy: 0% is treated as No Data / Constrained
-                    var pct = percentOfTarget(actual, target);
+                    var pct = percentOfTarget(actual, target, deId);
                     if (pct === null) return { status: 'nodata', pct: null };
-                    if (pct === 0) return { status: 'nodata', pct: 0 };
 
                     // optional clamp from config
                     if (tlc && tlc.clampPercentToRange && tlc.clampPercentToRange.length === 2) {
@@ -1257,13 +1815,14 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                     var rng = resolveRangesForDe(deId);
                     if (status === 'green') return { inlineStyle: { "background-color": rng.greenColor }, printStyle: 'green-background' };
                     if (status === 'yellow') return { inlineStyle: { "background-color": rng.yellowColor }, printStyle: 'yellow-background' };
-                    // red + nodata -> red for now (can introduce gray later)
+                    if (status === 'nodata') return { inlineStyle: { "background-color": rng.noDataColor || '#aaa' }, printStyle: 'grey-background' };
                     return { inlineStyle: { "background-color": rng.redColor }, printStyle: 'red-background' };
                 }
 
                 function povBucket(status) {
-                    if (status === 'green' || status === 'yellow') return 'O';
-                    if (status === 'red') return 'C';
+                    if (status === 'green') return 'A';
+                    if (status === 'yellow') return 'M';
+                    if (status === 'red') return 'N';
                     return 'X';
                 }
 
@@ -1273,9 +1832,9 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                 }
 
                 // -----------------------------------------------------------------------------
-                // Build dataHeaders from periodConfig active layout
+                // Build dataHeaders from appConfig.period active layout
                 // -----------------------------------------------------------------------------
-                var cfg = dataParams.periodConfig;
+                var cfg = dataParams.periodSettings;
                 var layoutKey = cfg.activeLayout || 'option2';
                 var layout = (cfg.layouts && cfg.layouts[layoutKey]) ? cfg.layouts[layoutKey] : null;
 
@@ -1449,6 +2008,8 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                                         dataElementCode: de.code,
                                         dataElementId: de.id,
                                         dataElement: de.displayName + (oc.displayName === 'default' ? '' : ' - ' + oc.displayName),
+                                        categoryOptionComboId: oc.id,
+                                        categoryOptionComboName: oc.displayName,
                                         dataElementGroup: deg.displayName,
                                         dataElementGroupSet: degs.displayName,
                                         values: {},
@@ -1552,18 +2113,41 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                     });
                 });
 
+                if (
+                    commentDataValues.length &&
+                    dataParams.actualDimension &&
+                    dataParams.actualDimension.id &&
+                    dataParams.bta &&
+                    dataParams.bta.categoryCombo
+                ) {
+                    hasCommentPerformanceData = ReportCommentService.applyCommentsToTableRows(
+                        tableRows,
+                        dataHeaders,
+                        dataParams.actualDimension.id,
+                        dataParams.bta.categoryCombo,
+                        commentDataValues,
+                        {
+                            dataElementsById: dataParams.dataElementsById,
+                            dataElementGroupsById: dataParams.dataElementGroupsById,
+                            selectedDataElementGroupSets: dataParams.selectedDataElementGroupSets
+                        }
+                    );
+                }
+
                 return {
                     dataExists: dataExists,
                     dataHeaders: dataHeaders,
                     reportPeriods: reportPeriods,
                     totalRows: totalRows,
                     hasPhysicalPerformanceData: hasPhysicalPerformanceData,
+                    hasCommentPerformanceData: hasCommentPerformanceData,
                     completenessNum: completenessNum,
                     completenessDen: completenessDen,
                     selectedDataElementGroupSets: dataParams.selectedDataElementGroupSets,
                     dataElementRowIndex: dataElementRowIndex,
                     tableRows: tableRows,
-                    povTableRows: povTableRows
+                    povTableRows: povTableRows,
+                    commentDataValues: commentDataValues
                 };
             }
         };
@@ -1801,32 +2385,88 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
         };
     })
 
-    .service('PolicyService', function ($http, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
-        return {
-            getByProgram: function (pager, filter, orgUnit, program, optionSets, attributesById, dataElementsById) {
-                var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=createdAt:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
-
-                if ( pager ){
-                    var pgSize = pager.pageSize ? pager.pageSize : 50;
-                    var pg = pager.page ? pager.page : 1;
-                    pgSize = pgSize > 1 ? pgSize  : 1;
-                    pg = pg > 1 ? pg : 1;
-                    url += '&pageSize=' + pgSize + '&page=' + pg + '&totalPages=false';
+    .service('PolicyService', function ($http, $q, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
+        function findMinistryAttributeId(attributesById) {
+            var out = '';
+            angular.forEach(attributesById || {}, function (attribute, id) {
+                if (out || !attribute) {
+                    return;
                 }
+                if (attribute.code === 'PT_TEA_MINISTRY' ||
+                    attribute.name === 'Responsible Ministry/Agency' ||
+                    attribute.displayName === 'Responsible Ministry/Agency') {
+                    out = id;
+                }
+            });
+            return out;
+        }
+
+        function resolveOrgUnitNameMap(teis) {
+            var deferred = $q.defer();
+            var nameMap = {};
+            var idSet = {};
+
+            angular.forEach(teis || [], function (tei) {
+                angular.forEach(tei.enrollments || [], function (enrollment) {
+                    if (!enrollment || !enrollment.orgUnit) {
+                        return;
+                    }
+                    idSet[enrollment.orgUnit] = true;
+                });
+            });
+
+            var ids = Object.keys(idSet);
+            if (ids.length < 1) {
+                deferred.resolve(nameMap);
+                return deferred.promise;
+            }
+
+            var filterExpr = 'id:in:[' + ids.join(',') + ']';
+            var url = DHIS2URL + '/api/organisationUnits.json?paging=false&fields=id,displayName&filter=' + encodeURIComponent(filterExpr);
+            $http.get(url).then(function (response) {
+                angular.forEach((response.data || {}).organisationUnits || [], function (ou) {
+                    if (ou && ou.id) {
+                        nameMap[ou.id] = ou.displayName || '';
+                    }
+                });
+                deferred.resolve(nameMap);
+            }, function () {
+                angular.forEach(ids, function (id) {
+                    nameMap[id] = id;
+                });
+                deferred.resolve(nameMap);
+            });
+
+            return deferred.promise;
+        }
+
+        return {
+            getByProgram: function (filter, orgUnit, program, optionSets, attributesById, dataElementsById) {
+                var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=createdAt:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
+                var pageSize = 200;
+                var ministryAttributeId = findMinistryAttributeId(attributesById);
 
                 if ( filter ){
                     url += "&" + filter;
                 }
 
-                var promise = $http.get(url).then(function (response) {
-                    var teis = response.data && response.data.trackedEntities ? response.data.trackedEntities : [];
-                    var pager = {};
-                    if ( response.data && response.data.page && response.data.pageSize ){
-                        pager.page = response.data.page;
-                        pager.pageSize = response.data.pageSize;
-                        pager.total = 1;
-                        pager.pageCount = 1;
-                    }
+                url += '&pageSize=' + pageSize + '&totalPages=true';
+
+                function fetchTrackedEntitiesAllPages(baseUrl, page, acc) {
+                    return $http.get(baseUrl + '&page=' + page).then(function (response) {
+                        var data = response.data || {};
+                        var teis = data.trackedEntities || [];
+                        var merged = acc.concat(teis);
+                        var pageCount = data.pageCount || 1;
+                        if (page < pageCount) {
+                            return fetchTrackedEntitiesAllPages(baseUrl, page + 1, merged);
+                        }
+                        return merged;
+                    });
+                }
+
+                var promise = fetchTrackedEntitiesAllPages(url, 1, []).then(function (teis) {
+                    return resolveOrgUnitNameMap(teis).then(function (orgUnitNameMap) {
                     var policies = [];
                     angular.forEach(teis, function (tei) {
                         var startDate = '', endDate = '';
@@ -1870,7 +2510,11 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                             }
                         }
                         if (tei.enrollments && tei.enrollments.length === 1) {
-                            policy.vote = tei.enrollments[0].orgUnitName;
+                            var enrollmentOrgUnitId = tei.enrollments[0].orgUnit;
+                            policy.vote = orgUnitNameMap[enrollmentOrgUnitId] || tei.enrollments[0].orgUnitName || enrollmentOrgUnitId || '';
+                            if (ministryAttributeId && !policy[ministryAttributeId]) {
+                                policy[ministryAttributeId] = policy.vote || '';
+                            }
                             if (tei.enrollments[0].events) {
                                 tei.enrollments[0].events = orderByFilter(tei.enrollments[0].events, '-createdAt').reverse();
                                 var len = tei.enrollments[0].events.length;
@@ -1893,41 +2537,99 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                         }
                         policies.push(policy);
                     });
-                    return {policies: policies, pager: pager};
+                    return {policies: policies};
+                    });
                 }, function (response) {
                     CommonUtils.errorNotifier(response);
+                    return $q.reject(response);
                 });
                 return promise;
             }
         };
     })
 
-    .service('ProjectService', function ($http, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
-        return {
-            getByProgram: function (pager, filter, orgUnit, program, optionSets, attributesById, dataElementsById) {
-                var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=createdAt:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
-
-                if ( pager ){
-                    var pgSize = pager.pageSize ? pager.pageSize : 50;
-                    var pg = pager.page ? pager.page : 1;
-                    pgSize = pgSize > 1 ? pgSize  : 1;
-                    pg = pg > 1 ? pg : 1;
-                    url += '&pageSize=' + pgSize + '&page=' + pg + '&totalPages=false';
+    .service('ProjectService', function ($http, $q, DHIS2URL, orderByFilter, DateUtils, CommonUtils, OptionSetService) {
+        function findMinistryAttributeId(attributesById) {
+            var out = '';
+            angular.forEach(attributesById || {}, function (attribute, id) {
+                if (out || !attribute) {
+                    return;
                 }
+                if (attribute.code === 'PT_TEA_MINISTRY' ||
+                    attribute.name === 'Responsible Ministry/Agency' ||
+                    attribute.displayName === 'Responsible Ministry/Agency') {
+                    out = id;
+                }
+            });
+            return out;
+        }
+
+        function resolveOrgUnitNameMap(teis) {
+            var deferred = $q.defer();
+            var nameMap = {};
+            var idSet = {};
+
+            angular.forEach(teis || [], function (tei) {
+                angular.forEach(tei.enrollments || [], function (enrollment) {
+                    if (!enrollment || !enrollment.orgUnit) {
+                        return;
+                    }
+                    idSet[enrollment.orgUnit] = true;
+                });
+            });
+
+            var ids = Object.keys(idSet);
+            if (ids.length < 1) {
+                deferred.resolve(nameMap);
+                return deferred.promise;
+            }
+
+            var filterExpr = 'id:in:[' + ids.join(',') + ']';
+            var url = DHIS2URL + '/api/organisationUnits.json?paging=false&fields=id,displayName&filter=' + encodeURIComponent(filterExpr);
+            $http.get(url).then(function (response) {
+                angular.forEach((response.data || {}).organisationUnits || [], function (ou) {
+                    if (ou && ou.id) {
+                        nameMap[ou.id] = ou.displayName || '';
+                    }
+                });
+                deferred.resolve(nameMap);
+            }, function () {
+                angular.forEach(ids, function (id) {
+                    nameMap[id] = id;
+                });
+                deferred.resolve(nameMap);
+            });
+
+            return deferred.promise;
+        }
+
+        return {
+            getByProgram: function (filter, orgUnit, program, optionSets, attributesById, dataElementsById) {
+                var url = DHIS2URL +  '/api/tracker/trackedEntities.json?ouMode=DESCENDANTS&order=createdAt:desc&fields=*&orgUnit=' + orgUnit.id + '&program=' + program.id;
+                var pageSize = 200;
+                var ministryAttributeId = findMinistryAttributeId(attributesById);
 
                 if ( filter ){
                     url += "&" + filter;
                 }
 
-                var promise = $http.get(url).then(function (response) {
-                    var teis = response.data && response.data.trackedEntities ? response.data.trackedEntities : [];
-                    var pager = {};
-                    if ( response.data && response.data.page && response.data.pageSize ){
-                        pager.page = response.data.page;
-                        pager.pageSize = response.data.pageSize;
-                        pager.total = 1;
-                        pager.pageCount = 1;
-                    }
+                url += '&pageSize=' + pageSize + '&totalPages=true';
+
+                function fetchTrackedEntitiesAllPages(baseUrl, page, acc) {
+                    return $http.get(baseUrl + '&page=' + page).then(function (response) {
+                        var data = response.data || {};
+                        var teis = data.trackedEntities || [];
+                        var merged = acc.concat(teis);
+                        var pageCount = data.pageCount || 1;
+                        if (page < pageCount) {
+                            return fetchTrackedEntitiesAllPages(baseUrl, page + 1, merged);
+                        }
+                        return merged;
+                    });
+                }
+
+                var promise = fetchTrackedEntitiesAllPages(url, 1, []).then(function (teis) {
+                    return resolveOrgUnitNameMap(teis).then(function (orgUnitNameMap) {
                     var projects = [];
                     angular.forEach(teis, function (tei) {
                         var startDate = '', endDate = '';
@@ -1970,7 +2672,11 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                             }
                         }
                         if (tei.enrollments && tei.enrollments.length === 1) {
-                            project.vote = tei.enrollments[0].orgUnitName;
+                            var enrollmentOrgUnitId = tei.enrollments[0].orgUnit;
+                            project.vote = orgUnitNameMap[enrollmentOrgUnitId] || tei.enrollments[0].orgUnitName || enrollmentOrgUnitId || '';
+                            if (ministryAttributeId && !project[ministryAttributeId]) {
+                                project[ministryAttributeId] = project.vote || '';
+                            }
                             if (tei.enrollments[0].events) {
                                 tei.enrollments[0].events = orderByFilter(tei.enrollments[0].events, '-occurredAt').reverse();
                                 var len = tei.enrollments[0].events.length;
@@ -2029,9 +2735,11 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                         }
                         projects.push(project);
                     });
-                    return {projects: projects, pager: pager};
+                    return {projects: projects};
+                    });
                 }, function (response) {
                     CommonUtils.errorNotifier(response);
+                    return $q.reject(response);
                 });
                 return promise;
             },
@@ -2171,7 +2879,7 @@ var ndpFrameworkServices = angular.module('ndpFrameworkServices', ['ngResource']
                         return pe.id;
                     }).join(';');
 
-                    var pHeaders = CommonUtils.getPerformanceOverviewHeaders();
+                    var pHeaders = CommonUtils.getPerformanceOverviewHeaders(null);
                     var prds = orderByFilter(clusterPeriods, '-id').reverse();
                     var clusterPerformanceOverviewHeaders = [];
                     angular.forEach(prds, function (pe) {

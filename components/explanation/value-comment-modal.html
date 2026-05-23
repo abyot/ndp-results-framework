@@ -1,0 +1,50 @@
+<div class="modal-header page">
+    <h3>{{'data_value_details'| translate}}</h3>
+</div>
+
+<div class="modal-body page">
+    <div ng-if="loading">
+        <div class="alert alert-info">
+            {{'loading' | translate}}
+        </div>
+    </div>
+
+    <div ng-if="!loading">
+        <h5 class="bold">
+            {{item.dataElementName}}
+        </h5>
+        <div>
+            {{'period' | translate}}: {{item.periodId}}
+        </div>
+        <div class="small-vertical-spacing">
+            {{'value' | translate}}: {{item.value || '-'}}
+        </div>
+
+        <div ng-if="comment">
+            <div class="small-vertical-spacing">
+                <strong>{{'attachment' | translate}}</strong>
+                <ul class="list-group">
+                    <li class="list-group-item" ng-repeat="att in comment.attachment" ng-if="documents[att] && documents[att].path && documents[att].name">
+                        <a href ng-click="downloadFile(documents[att].path, $event)">{{documents[att].name}} ({{documents[att].size}})</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="small-vertical-spacing">
+                <strong>{{'explanation' | translate}}</strong>
+            </div>
+            <div>
+                {{comment.explanation || '-'}}
+            </div>
+        </div>
+
+        <div ng-if="!comment">
+            <div class="alert alert-info">
+                {{'data_has_no_additional_info' | translate}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-footer page">
+    <button class="btn btn-primary" type="button" data-ng-click="close()">{{'close'| translate}}</button>
+</div>

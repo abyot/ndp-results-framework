@@ -707,15 +707,127 @@ var d2Services = angular.module('d2Services', ['ngResource'])
             def.resolve( res );
             return def.promise;
         },
-        getPerformanceOverviewHeaders: function(){
+        getPerformanceOverviewHeaders: function(trafficLightConfig){
+            function getColorEntry(id, fallbackColor, fallbackPrintStyle) {
+                var colors = trafficLightConfig && trafficLightConfig.colors ? trafficLightConfig.colors : {};
+                var entry = colors[id] || null;
 
-            var ac = { order: 1, id: 'A', name: $translate.instant('achieved') + '  (>= 100%)', lRange:  100, printStyle: 'green-background', style: {"background-color": '#339D73 !important', "color": '#000'} };
+                if (!entry) {
+                    if (id === 'achieved') entry = colors.green;
+                    else if (id === 'moderatelyAchieved') entry = colors.yellow;
+                    else if (id === 'notAchieved') entry = colors.red;
+                    else if (id === 'noData') entry = colors.noData;
+                }
 
-            var ma = { order: 2, id: 'M', name: $translate.instant('moderately_achieved') + '  (75-99%)', lRange: 75, hRange: 99, printStyle: 'yellow-background', style: {"background-color": '#F4CD4D !important', "color": '#000'} };
+                if (angular.isString(entry)) {
+                    entry = { color: entry };
+                }
 
-            var na = { order: 3, id: 'N', name: $translate.instant('not_achieved') + '  (<75%)', hRange: 74, printStyle: 'red-background', style: {"background-color": '#CD615A !important', "color": '#000'} };
+                entry = entry || {};
 
-            var nd = { order: 4, id: 'X', name: $translate.instant('no_data'), printStyle: 'grey-background', style: {"background-color": '#aaa !important', "color": '#000'}};
+                return {
+                    color: entry.color || fallbackColor,
+                    printStyle: entry.printStyle || fallbackPrintStyle
+                };
+            }
+
+            function findRange(id) {
+                var ranges = trafficLightConfig && trafficLightConfig.ranges ? trafficLightConfig.ranges : [];
+                for (var i = 0; i < ranges.length; i++) {
+                    if (ranges[i] && ranges[i].id === id) {
+                        return ranges[i];
+                    }
+                }
+                return null;
+            }
+
+            function getLabel(id, fallback) {
+                var labels = trafficLightConfig && trafficLightConfig.labels ? trafficLightConfig.labels : {};
+                return {
+                    text: labels[id] || fallback,
+                    isCustom: !!labels[id]
+                };
+            }
+
+            function buildLegendName(labelInfo, range, fallbackRangeLabel) {
+                if (labelInfo.isCustom) {
+                    return labelInfo.text;
+                }
+
+                return labelInfo.text + ' ' + formatRangeLabel(range, fallbackRangeLabel);
+            }
+
+            function formatRangeLabel(range, fallback) {
+                if (!range || range.min === undefined || range.max === undefined) {
+                    return fallback;
+                }
+
+                if (range.max === Number.POSITIVE_INFINITY) {
+                    return '(>= ' + range.min + '%)';
+                }
+
+                if (range.min === Number.NEGATIVE_INFINITY) {
+                    return '(<= ' + range.max + '%)';
+                }
+
+                if (range.min === range.max) {
+                    return '(' + range.min + '%)';
+                }
+
+                return '(' + range.min + '-' + range.max + '%)';
+            }
+
+            var achievedRange = findRange('achieved');
+            var moderatelyAchievedRange = findRange('moderatelyAchieved');
+            var notAchievedRange = findRange('notAchieved');
+
+            var achievedColor = getColorEntry('achieved', '#339D73', 'green-background');
+            var moderatelyAchievedColor = getColorEntry('moderatelyAchieved', '#F4CD4D', 'yellow-background');
+            var notAchievedColor = getColorEntry('notAchieved', '#CD615A', 'red-background');
+            var noDataColor = getColorEntry('noData', '#aaa', 'grey-background');
+
+            var achievedName = getLabel('achieved', $translate.instant('achieved'));
+            var moderatelyAchievedName = getLabel('moderatelyAchieved', $translate.instant('moderately_achieved'));
+            var notAchievedName = getLabel('notAchieved', $translate.instant('not_achieved'));
+            var noDataName = getLabel('noData', $translate.instant('no_data'));
+
+            var ac = {
+                order: 1,
+                id: 'A',
+                name: buildLegendName(achievedName, achievedRange, '(>= 100%)'),
+                lRange: achievedRange && achievedRange.min !== undefined ? achievedRange.min : 100,
+                hRange: achievedRange && achievedRange.max !== undefined ? achievedRange.max : undefined,
+                printStyle: achievedColor.printStyle,
+                style: {"background-color": achievedColor.color + ' !important', "color": '#000'}
+            };
+
+            var ma = {
+                order: 2,
+                id: 'M',
+                name: buildLegendName(moderatelyAchievedName, moderatelyAchievedRange, '(75-99%)'),
+                lRange: moderatelyAchievedRange && moderatelyAchievedRange.min !== undefined ? moderatelyAchievedRange.min : 75,
+                hRange: moderatelyAchievedRange && moderatelyAchievedRange.max !== undefined ? moderatelyAchievedRange.max : 99,
+                printStyle: moderatelyAchievedColor.printStyle,
+                style: {"background-color": moderatelyAchievedColor.color + ' !important', "color": '#000'}
+            };
+
+            var na = {
+                order: 3,
+                id: 'N',
+                name: buildLegendName(notAchievedName, notAchievedRange, '(<75%)'),
+                lRange: notAchievedRange && notAchievedRange.min !== undefined ? notAchievedRange.min : undefined,
+                hRange: notAchievedRange && notAchievedRange.max !== undefined ? notAchievedRange.max : 74,
+                printStyle: notAchievedColor.printStyle,
+                style: {"background-color": notAchievedColor.color + ' !important', "color": '#000'}
+            };
+
+            var nd = {
+                order: 4,
+                id: 'X',
+                name: noDataName.text,
+                printStyle: noDataColor.printStyle,
+                style: {"background-color": noDataColor.color + ' !important', "color": '#000'}
+            };
 
             return [ac, ma, na, nd];
 

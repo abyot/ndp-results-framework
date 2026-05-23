@@ -16,6 +16,8 @@ ndpFramework.controller('GoalController',
         MetaDataFactory,
         OrgUnitFactory,
         OptionComboService,
+        DataStoreService,
+        ReportCommentService,
         Analytics,
         CommonUtils,
         FinancialDataService,
@@ -195,7 +197,7 @@ ndpFramework.controller('GoalController',
                             $scope.selectedOrgUnit = $scope.orgUnits[0] ? $scope.orgUnits[0] : null;
                             $scope.model.metaDataCached = true;
                             $scope.populateMenu();
-                            $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders();
+                            $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders($scope.model.trafficLightConfig);
                         });
                     });
                 });
@@ -277,7 +279,7 @@ ndpFramework.controller('GoalController',
             analyticsUrl += '&dimension=co&dimension=' + $scope.model.bta.category + ':' + $.map($scope.model.baseLineTargetActualDimensions, function(dm){return dm;}).join(';');
             analyticsUrl += '&dimension=pe:' + $.map($scope.model.selectedPeriods.concat( $scope.model.basePeriod ), function(pe){return pe.id;}).join(';');
 
-            var pHeaders = CommonUtils.getPerformanceOverviewHeaders();
+            var pHeaders = CommonUtils.getPerformanceOverviewHeaders($scope.model.trafficLightConfig);
             $scope.model.pHeadersLength = pHeaders.length;
             var prds = orderByFilter( $scope.model.selectedPeriods, '-id').reverse();
             $scope.model.performanceOverviewHeaders = [];
@@ -305,7 +307,14 @@ ndpFramework.controller('GoalController',
             FinancialDataService.getLocalData('data/cost.json').then(function(cost){
                 $scope.model.cost = cost;
 
-                Analytics.getData( analyticsUrl ).then(function(data){
+                Analytics.getData(analyticsUrl, {
+                    commentConfig: {
+                        orgUnitId: $scope.selectedOrgUnit.id,
+                        selectedPeriods: $scope.model.selectedPeriods,
+                        dataElementGroups: $scope.model.dataElementGroup,
+                        dimensionCategoryId: $scope.model.bta.category
+                    }
+                }).then(function(data){
                     if( data && data.data && data.metaData ){
                         $scope.model.data = data.data;
                         $scope.model.metaData = data.metaData;
@@ -331,7 +340,8 @@ ndpFramework.controller('GoalController',
                             cost: $scope.model.cost,
                             displayVision2040: true,
                             performanceOverviewHeaders: $scope.model.performanceOverviewHeaders,
-                            displayActionBudgetData: false
+                            displayActionBudgetData: false,
+                            commentDataValues: data.commentDataValues || []
                         };
 
                         var processedData = Analytics.processData( dataParams );
@@ -340,11 +350,13 @@ ndpFramework.controller('GoalController',
                         $scope.model.dataExists = processedData.dataExists;
                         $scope.model.selectedDataElementGroupSets = processedData.selectedDataElementGroupSets;
                         $scope.model.hasPhysicalPerformanceData = processedData.hasPhysicalPerformanceData;
+                        $scope.model.hasCommentPerformanceData = processedData.hasCommentPerformanceData;
                         $scope.model.numerator = processedData.completenessNum;
                         $scope.model.denominator = processedData.completenessDen;
                         $scope.model.dataElementRowIndex = processedData.dataElementRowIndex;
                         $scope.model.tableRows = processedData.tableRows;
                         $scope.model.povTableRows = processedData.povTableRows;
+                        $scope.model.commentDataValues = processedData.commentDataValues || [];
                     }
                 });
             });
@@ -376,8 +388,83 @@ ndpFramework.controller('GoalController',
         });
     };
 
-    $scope.exportData = function ( name ) {
-        var blob = new Blob([document.getElementById(name ).innerHTML], {
+    function appendCommentsToPerformanceExport(exportElement, commentDataValues) {
+        var table = exportElement.querySelector('table');
+        var exportRows = $filter('emptyRowFilter')($scope.model.tableRows, $scope.model.hideEmptyRows);
+        var tableRows = exportElement.querySelectorAll('tbody tr');
+        var headerRows = table ? table.querySelectorAll('thead tr') : [];
+
+        if (headerRows.length > 0) {
+            var headerCell = exportElement.ownerDocument.createElement('th');
+            headerCell.setAttribute('rowspan', '2');
+            headerCell.appendChild(exportElement.ownerDocument.createTextNode('Comments'));
+            headerRows[0].appendChild(headerCell);
+        }
+
+        angular.forEach(exportRows, function(row, rowIndex){
+            var rowElement = tableRows[rowIndex];
+            var rowComments = [];
+            var seenCommentKeys = {};
+            if (!rowElement) {
+                return;
+            }
+
+            angular.forEach($scope.model.dataHeaders, function(dh){
+                if (dh.dimensionId !== $scope.model.actualDimension.id) {
+                    return;
+                }
+
+                var attributeOptionComboId = DataStoreService.resolveAttributeOptionComboId(
+                    $scope.model.bta.categoryCombo,
+                    dh.dimensionId
+                );
+                var commentDataValue = ReportCommentService.findMatchingComment(
+                    commentDataValues,
+                    row.dataElementId,
+                    dh.periodId,
+                    row.categoryOptionComboId,
+                    attributeOptionComboId
+                );
+                var comment = commentDataValue && commentDataValue.comment;
+
+                var seenCommentKey = commentDataValue && [
+                    commentDataValue.dataElementId,
+                    commentDataValue.periodId,
+                    commentDataValue.categoryOptionComboId,
+                    commentDataValue.attributeOptionComboId
+                ].join('.');
+
+                if (!comment || seenCommentKeys[seenCommentKey]) {
+                    return;
+                }
+                seenCommentKeys[seenCommentKey] = true;
+                rowComments.push({
+                    orgUnit: $scope.selectedOrgUnit.id,
+                    dataElement: commentDataValue.dataElementId || row.dataElementId,
+                    period: commentDataValue.periodId || dh.periodId,
+                    categoryOptionCombo: commentDataValue.categoryOptionComboId || row.categoryOptionComboId,
+                    attributeOptionCombo: commentDataValue.attributeOptionComboId || attributeOptionComboId,
+                    explanation: comment.explanation || '',
+                    attachment: comment.attachment || []
+                });
+            });
+
+            var commentCell = exportElement.ownerDocument.createElement('td');
+            commentCell.appendChild(
+                exportElement.ownerDocument.createTextNode(rowComments.length ? JSON.stringify(rowComments) : '')
+            );
+            rowElement.appendChild(commentCell);
+        });
+    }
+
+    function exportBlobFromElement(name, exportElement) {
+        angular.forEach(exportElement.querySelectorAll('.hideInPrint'), function(node){
+            if (node && node.parentNode) {
+                node.parentNode.removeChild(node);
+            }
+        });
+
+        var blob = new Blob([exportElement.innerHTML], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8"
         });
 
@@ -389,45 +476,27 @@ ndpFramework.controller('GoalController',
 
         reportName += ".xls";
 
-        saveAs(blob, reportName);
+        window.saveAs(blob, reportName);
+    }
+
+    $scope.exportData = function ( name ) {
+        var exportElement = document.getElementById(name);
+        if (!exportElement) {
+            return;
+        }
+
+        if (name === 'performance') {
+            var clonedElement = exportElement.cloneNode(true);
+            appendCommentsToPerformanceExport(clonedElement, $scope.model.commentDataValues || []);
+            exportBlobFromElement(name, clonedElement);
+            return;
+        }
+
+        exportBlobFromElement(name, exportElement.cloneNode(true));
     };
 
     $scope.getExplanations = function(){
         $scope.model.showExplanation = !$scope.model.showExplanation;
-        if ( $scope.model.showExplanation && $scope.model.explanations.length === 0 ){
-            var dataValueSetUrl = 'orgUnit=' + $scope.selectedOrgUnit.id;
-            dataValueSetUrl += '&children=true';
-            dataValueSetUrl += '&startDate=' + $scope.model.selectedPeriods[0].startDate;
-            dataValueSetUrl += '&endDate='  + $scope.model.selectedPeriods.slice(-1)[0].endDate;
-
-            angular.forEach($scope.model.dataElementGroup, function(deg){
-                dataValueSetUrl += '&dataElementGroup=' + deg.id;
-            });
-
-            DataValueService.getDataValueSet( dataValueSetUrl ).then(function( response ){
-                if ( response && response.dataValues){
-                    angular.forEach(response.dataValues, function(dv){
-                        if(dv.comment){
-                            dv.comment = JSON.parse( dv.comment );
-                            if ( dv.comment.explanation ){
-                                $scope.model.explanations.push({
-                                    dataElement: dv.dataElement,
-                                    order: $scope.model.dataElementRowIndex[dv.dataElement],
-                                    comment: dv.comment.explanation
-                                });
-                            }
-                        }
-                    });
-
-                    $scope.model.explanations = orderByFilter( $scope.model.explanations, '-order').reverse();
-                    var index = 1;
-                    angular.forEach($scope.model.explanations, function(exp){
-                        $scope.model.commentRow[exp.dataElement] = index;
-                        index++;
-                    });
-                }
-            });
-        }
     };
 
     $scope.getIndicatorDictionary = function(item) {
@@ -466,11 +535,41 @@ ndpFramework.controller('GoalController',
         });
     };
 
+    $scope.getValueComment = function (row, header, $event) {
+        if ($event) {
+            $event.stopPropagation();
+            $event.preventDefault();
+        }
+
+        var cell = row.commentCells && row.commentCells[header.dimensionId + '.' + header.periodId];
+        if (!cell) {
+            return;
+        }
+
+        $modal.open({
+            templateUrl: 'components/explanation/value-comment-modal.html',
+            controller: 'ValueCommentController',
+            windowClass: 'comment-modal-window',
+            resolve: {
+                item: function () {
+                    return {
+                        comment: cell.comment,
+                        dataElementName: row.dataElement,
+                        periodId: cell.periodId || header.periodId,
+                        value: row.values[header.dimensionId + '.' + header.periodId]
+                    };
+                }
+            }
+        });
+    };
+
     $scope.resetDataView = function(){
         $scope.model.data = null;
         $scope.model.reportReady = false;
         $scope.model.dataExists = false;
         $scope.model.dataHeaders = [];
+        $scope.model.showExplanation = false;
+        $scope.model.hasCommentPerformanceData = false;
     };
 
     $scope.getCoverage = function(numerator, denominator){

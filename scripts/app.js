@@ -1,4 +1,6 @@
 import '../core/ndp-framework.js'
+const fileSaver = require('../scripts/file-saver.js');
+window.saveAs = fileSaver.saveAs;
 
 import './resultsFrameworkModule.js'
 
@@ -22,6 +24,7 @@ import '../components/completeness/completeness-controller.js'
 import '../components/dictionary/dictionary-controller.js'
 import '../components/dictionary/dictionary-details-controller.js'
 import '../components/explanation/datavalue-explanation-controller.js'
+import '../components/explanation/value-comment-controller.js'
 import '../components/faq/faq-controller.js'
 import '../components/goal/goal-controller.js'
 import '../components/home/home-controller.js'

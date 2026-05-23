@@ -8,11 +8,10 @@
 
 <div ng-include="'components/output/filters.html'"></div>
 <div class="row" ng-if="model.reportReady" style="margin-left:0px;margin-right:0px;">
-    <div class="card-new" ng-if="model.hasPhysicalPerformanceData" style="padding-top:10px;">
-        <div ng-if="model.hasPhysicalPerformanceData">
+    <div class="card-new" ng-if="model.hasPhysicalPerformanceData || model.hasCommentPerformanceData" style="padding-top:10px;">
+        <div ng-if="model.hasPhysicalPerformanceData || model.hasCommentPerformanceData">
             <div ng-include="'views/performance-header.html'"></div>
             <div id="performance" class="col-sm-12 table-scroll">
-                <div ng-include="'views/explanation-list.html'"></div>
                 <table>
                     <thead>
                     <tr>
@@ -36,7 +35,8 @@
                     </tr>
                     </thead>
                     <tbody id="datatable">
-                    <tr ng-repeat="row in model.tableRows | emptyRowFilter:model.hideEmptyRows">
+                    <tr ng-repeat="row in model.tableRows | emptyRowFilter:model.hideEmptyRows"
+                        ng-class="{'comment-highlight-row': model.showExplanation && row.hasCommentMarker}">
 <!--                        <td>-->
 <!--                            {{row.dataElementGroupSet}}-->
 <!--                        </td>-->
@@ -44,7 +44,6 @@
                             {{row.dataElementGroup}}
                         </td>
                         <td>
-                            <span ng-if="model.showExplanation">[{{model.commentRow[row.dataElementId]}}]</span>
                             {{row.dataElement}}
                             <i ng-click="getIndicatorDictionary(row.dataElementId)"
                                class="fa fa-info-circle info-icon cursor-pointer hideInPrint" aria-hidden="true"
@@ -54,6 +53,10 @@
                             ng-style="row.styles[dh.dimensionId + '.' + dh.periodId].inlineStyle"
                             ng-class="row.styles[dh.dimensionId + '.' + dh.periodId].printStyle">
                             {{row.values[dh.dimensionId + '.' + dh.periodId]}}
+                            <i ng-if="model.showExplanation && row.commentCells && row.commentCells[dh.dimensionId + '.' + dh.periodId]"
+                               ng-click="getValueComment(row, dh, $event)"
+                               class="fa fa-comment-o cursor-pointer hideInPrint"
+                               title="Comment"></i>
                         </td>
                     </tr>
                     </tbody>
@@ -62,7 +65,7 @@
         </div>
     </div>
 
-    <div class="col-sm-12" ng-if="!model.hasPhysicalPerformanceData">
+    <div class="col-sm-12" ng-if="!model.hasPhysicalPerformanceData && !model.hasCommentPerformanceData">
         <div class="alert alert-warning">
             {{'no_data_exists'| translate}}
         </div>
