@@ -193,7 +193,7 @@ ndpFramework.controller('ClusterController',
 
                                     $scope.model.metaDataCached = true;
                                     $scope.populateMenu();
-                                    $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders();
+                                    $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders($scope.model.trafficLightConfig);
                                 });
                             });                            
                         });

@@ -175,7 +175,7 @@ ndpFramework.controller('ActionOutputController',
 
         DataStoreService.getAppConfig().then(function( appConfig ){
 
-            $scope.model.periodConfig = appConfig.period;
+            $scope.model.periodSettings = appConfig.period;
             $scope.model.trafficLightConfig = appConfig.trafficLight;
 
             MetaDataFactory.getAll('optionSets').then(function(optionSets){
@@ -255,8 +255,7 @@ ndpFramework.controller('ActionOutputController',
                                             $scope.model.allPeriods = angular.copy( periods );
                                             $scope.model.periods = periods;
 
-                                            // periodConfigs is the datastore payload
-                                            var cfg = $scope.model.periodConfig;
+                                            var cfg = $scope.model.periodSettings;
 
                                             // pick active layout
                                             var layoutKey = cfg.activeLayout || 'option2';
@@ -289,7 +288,7 @@ ndpFramework.controller('ActionOutputController',
                                                 }
                                             });
 
-                                            $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders();
+                                            $scope.model.performanceOverviewLegends = CommonUtils.getPerformanceOverviewHeaders($scope.model.trafficLightConfig);
                                             $scope.model.metaDataCached = true;
                                             $scope.populateMenu();
                                         });
@@ -446,7 +445,7 @@ ndpFramework.controller('ActionOutputController',
                         legendSetsById: $scope.model.legendSetsById,
                         defaultLegendSet: $scope.model.defaultLegendSet,
                         displayActionBudgetData: true,
-                        periodConfig: $scope.model.periodConfig,
+                        periodSettings: $scope.model.periodSettings,
                         trafficLightConfig: $scope.model.trafficLightConfig
                     };
 
